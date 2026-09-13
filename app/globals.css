@@ -1,26 +1,81 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-serif: Georgia, serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    margin: 0;
+    background: #f7faf9;
+    color: #172b3a;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  button,
+  input,
+  select {
+    font: inherit;
+  }
+  button {
+    cursor: pointer;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  html[data-theme="dark"] body {
+    background: #0d1d26 !important;
+    color: #e8f1f2 !important;
+  }
+
+  html[data-theme="dark"] .bg-white {
+    background-color: #142b35 !important;
+  }
+
+  html[data-theme="dark"] [class*="bg-[#f4f7f8]"] {
+    background-color: #0d1d26 !important;
+  }
+
+  html[data-theme="dark"] [class*="bg-[#f7fafb]"] {
+    background-color: #19323d !important;
+  }
+
+  html[data-theme="dark"] [class*="border-[#dce5e8]"],
+  html[data-theme="dark"] [class*="border-[#eef2f3]"],
+  html[data-theme="dark"] [class*="border-[#eef2f0]"] {
+    border-color: #294650 !important;
+  }
+
+  html[data-theme="dark"] [class*="text-[#172b3a]"] {
+    color: #e8f1f2 !important;
+  }
+
+  html[data-theme="dark"] [class*="text-[#61737d]"],
+  html[data-theme="dark"] [class*="text-[#71838a]"],
+  html[data-theme="dark"] [class*="text-[#839198]"],
+  html[data-theme="dark"] [class*="text-[#809198]"],
+  html[data-theme="dark"] [class*="text-[#788a90]"] {
+    color: #9db5b9 !important;
+  }
+
+  html[data-theme="dark"] input,
+  html[data-theme="dark"] select {
+    color: #e8f1f2 !important;
+    color-scheme: dark;
+  }
+
+  html[data-theme="dark"] option {
+    background: #142b35 !important;
+    color: #e8f1f2 !important;
+  }
 }
