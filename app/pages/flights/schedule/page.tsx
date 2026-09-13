@@ -35,7 +35,7 @@ export default function SchedulePage() {
       <div className="module-page">
         <PageTitle
           eyebrow="Flight Management / Schedule"
-          title="Departure schedule"
+          title="Schedule"
         />
         <form
           onSubmit={search}
@@ -105,19 +105,43 @@ export default function SchedulePage() {
           {flights.map((flight) => (
             <div
               key={flight.id}
-              className="flex flex-wrap items-center gap-4 rounded-xl border border-[#dce5e8] bg-white p-4 text-[11px]"
+              className="grid gap-4 rounded-xl border border-[#dce5e8] bg-white p-4 text-[11px] sm:grid-cols-[1fr_1.4fr_1fr_1fr_1fr] sm:items-center"
             >
-              <strong className="w-20">{flight.id}</strong>
-              <span className="flex-1">
-                {flight.airline} · {flight.from} → {flight.to}
-              </span>
-              <span>
-                {flight.departure}–{flight.arrival}
-              </span>
-              <span>{displayPrice(flight.price)}</span>
-              <span>
-                {flight.seatsAvailable}/{flight.capacity} seats
-              </span>
+              <div>
+                <strong className="block text-[#0e6b69]">{flight.id}</strong>
+                <span className="text-[10px] text-[#839198]">
+                  {flight.airline}
+                </span>
+              </div>
+              <div>
+                <span className="block text-[9px] uppercase tracking-wide text-[#839198]">
+                  Route
+                </span>
+                <strong>
+                  {flight.from} → {flight.to}
+                </strong>
+              </div>
+              <div>
+                <span className="block text-[9px] uppercase tracking-wide text-[#839198]">
+                  Departure
+                </span>
+                <strong>{flight.departure}</strong>
+              </div>
+              <div>
+                <span className="block text-[9px] uppercase tracking-wide text-[#839198]">
+                  Arrival
+                </span>
+                <strong>{flight.arrival}</strong>
+              </div>
+              <div>
+                <span className="block text-[9px] uppercase tracking-wide text-[#839198]">
+                  Fare / seats
+                </span>
+                <strong>{displayPrice(flight.price)}</strong>
+                <span className="ml-2 text-[#71838a]">
+                  {flight.seatsAvailable}/{flight.capacity}
+                </span>
+              </div>
             </div>
           ))}
           {flights.length === 0 && (

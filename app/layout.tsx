@@ -13,8 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AeroVista | Travel further",
-  description: "Book flights with AeroVista and make every mile matter.",
+  title: "Safty Airline",
+  description: "Safty Airline flight booking and operations system.",
+  icons: {
+    icon: "/assets/icon.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

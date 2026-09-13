@@ -29,7 +29,7 @@ export default function AuthPage() {
     <main className="grid min-h-screen place-items-center bg-[#f4f7f8] p-5">
       <section className="w-full max-w-md rounded-2xl border border-[#dce5e8] bg-white p-7 shadow-xl">
         <p className="text-[10px] font-bold uppercase tracking-[1.8px] text-[#769099]">
-          AeroVista Airline System
+          Safty Airline System
         </p>
         <h1 className="mt-2 text-2xl font-semibold">
           {mode === "login" ? "Welcome back" : "Create your account"}

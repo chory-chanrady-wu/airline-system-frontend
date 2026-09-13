@@ -33,6 +33,7 @@ export function AirlineSystem({
   const [activeModule] = useState<Module>(initialModule);
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const [notice, setNotice] = useState("");
   const [theme, setTheme] = useState<ThemePreference>(() => {
     if (typeof window === "undefined") return "system";
@@ -43,6 +44,11 @@ export function AirlineSystem({
       ? saved
       : "system";
   });
+
+  useEffect(() => {
+    const clock = window.setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => window.clearInterval(clock);
+  }, []);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -77,7 +83,7 @@ export function AirlineSystem({
           <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-[#42b5a4] p-1">
             <Image
               src={airplaneIcon}
-              alt="AeroVista airplane"
+              alt="Safty Airline airplane"
               width={32}
               height={32}
               className="h-full w-full object-contain"
@@ -186,9 +192,21 @@ export function AirlineSystem({
               <span className="mt-1 block h-0.5 w-5 bg-current"></span>
             </button>
             <div>
-              <p className="text-[10px] text-[#839198]">
-                Monday, 12 October 2026
-              </p>
+              <time
+                dateTime={currentTime.toISOString()}
+                suppressHydrationWarning
+                className="block text-[10px] text-[#839198]"
+              >
+                {new Intl.DateTimeFormat("en-US", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  second: "2-digit",
+                }).format(currentTime)}
+              </time>
               <h1 className="mt-1 text-[20px] font-semibold tracking-[-.5px]">
                 {activeModule}
               </h1>
