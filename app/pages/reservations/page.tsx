@@ -1,18 +1,85 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { AirlineSystem } from "../../components/airline-system";
-import { reservations } from "../../components/airline-data";
 import { Icon } from "../../components/icons";
 import { PageTitle } from "../../components/page-title";
 import { ReservationTable } from "../../components/reservation-table";
+import {
+  cancelBooking,
+  displayPrice,
+  getSession,
+  loadState,
+  undoLastAction,
+} from "../../services/airline-system";
 
 export default function ReservationsPage() {
   const router = useRouter();
+  const [rows, setRows] = useState<ReturnType<typeof loadState>["bookings"]>(
+    () => {
+      const session = getSession();
+      return loadState().bookings.filter(
+        (booking) => !session || booking.passengerId === session.id,
+      );
+    },
+  );
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("All statuses");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [showDateRange, setShowDateRange] = useState(false);
+  const [message, setMessage] = useState("");
+
+  function refresh() {
+    const session = getSession();
+    setRows(
+      loadState().bookings.filter(
+        (booking) => !session || booking.passengerId === session.id,
+      ),
+    );
+  }
+
+  const visibleRows = rows
+    .filter((row) =>
+      `${row.id} ${row.passenger} ${row.route}`
+        .toLowerCase()
+        .includes(query.toLowerCase()),
+    )
+    .filter((row) => status === "All statuses" || row.status === status)
+    .filter((row) => !dateFrom || row.date >= dateFrom)
+    .filter((row) => !dateTo || row.date <= dateTo)
+    .map((row) => ({
+      ...row,
+      date: row.date,
+      amount: displayPrice(row.amount),
+    }));
+
+  function cancel(id: string) {
+    try {
+      cancelBooking(id, getSession()?.id);
+      refresh();
+      setMessage(
+        "Booking cancelled. The next waitlisted passenger was offered the seat when available.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to cancel booking.",
+      );
+    }
+  }
+
+  function undo() {
+    const session = getSession();
+    if (session && undoLastAction(session.id)) {
+      refresh();
+      setMessage("The last booking action was undone.");
+    }
+  }
 
   return (
     <AirlineSystem initialModule="Reservations">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="module-page">
         <PageTitle
           eyebrow="Booking management"
           title="Reservations"
@@ -26,19 +93,72 @@ export default function ReservationsPage() {
               <input
                 className="w-full border-0 bg-transparent text-[11px] outline-none"
                 placeholder="Search booking or passenger"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
               />
             </div>
-            <select className="rounded-lg border border-[#dce5e8] bg-white px-3 text-[11px] text-[#61737d]">
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              className="rounded-lg border border-[#dce5e8] bg-white px-3 text-[11px] text-[#61737d]"
+            >
               <option>All statuses</option>
               <option>Confirmed</option>
               <option>Pending</option>
               <option>Cancelled</option>
             </select>
-            <button className="rounded-lg border border-[#dce5e8] bg-white px-3 text-[11px] font-semibold text-[#526a73]">
+            <button
+              type="button"
+              onClick={() => setShowDateRange((open) => !open)}
+              className="rounded-lg border border-[#dce5e8] bg-white px-3 text-[11px] font-semibold text-[#526a73]"
+            >
               <Icon name="calendar" size={14} /> Date range
             </button>
           </div>
-          <ReservationTable rows={reservations} />
+          {showDateRange && (
+            <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-[#dce5e8] bg-white p-3">
+              <label className="text-[10px] font-bold text-[#839198]">
+                From
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(event) => setDateFrom(event.target.value)}
+                  className="mt-1 block rounded border border-[#dce5e8] px-2 py-1 text-[11px] font-normal"
+                />
+              </label>
+              <label className="text-[10px] font-bold text-[#839198]">
+                To
+                <input
+                  type="date"
+                  min={dateFrom}
+                  value={dateTo}
+                  onChange={(event) => setDateTo(event.target.value)}
+                  className="mt-1 block rounded border border-[#dce5e8] px-2 py-1 text-[11px] font-normal"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+                className="text-[11px] font-bold text-[#0e6b69]"
+              >
+                Clear dates
+              </button>
+            </div>
+          )}
+          <div className="mb-3 flex items-center justify-between text-[11px] text-[#526a73]">
+            <span>{message}</span>
+            <button
+              type="button"
+              onClick={undo}
+              className="font-bold text-[#0e6b69]"
+            >
+              Undo last action
+            </button>
+          </div>
+          <ReservationTable rows={visibleRows} onCancel={cancel} />
         </div>
       </div>
     </AirlineSystem>

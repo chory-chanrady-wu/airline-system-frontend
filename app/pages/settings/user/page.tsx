@@ -65,7 +65,7 @@ export default function UserSettingsPage() {
 
   return (
     <AirlineSystem initialModule="User">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="module-page">
         <PageTitle
           eyebrow="Settings / User management"
           title="Users"

@@ -38,5 +38,5 @@ export type PageNavigate = (
     | "Book flight"
     | "Reservations"
     | "Passengers"
-    | "Flights",
+    | "Flight Management",
 ) => void;

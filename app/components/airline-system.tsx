@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import airplaneIcon from "../assets/icon.png";
 import { Icon } from "./icons";
@@ -19,7 +19,7 @@ const menu: {
   { label: "Book flight", icon: "ticket", href: "/pages/book-flight" },
   { label: "Reservations", icon: "calendar", href: "/pages/reservations" },
   { label: "Passengers", icon: "user", href: "/pages/passengers" },
-  { label: "Flights", icon: "plane", href: "/pages/flights" },
+  { label: "Flight Management", icon: "plane", href: "/pages/flights" },
   { label: "Settings", icon: "settings", href: "/pages/settings" },
 ];
 
@@ -30,19 +30,19 @@ export function AirlineSystem({
   initialModule?: Module;
   children: ReactNode;
 }) {
-  const [activeModule, setActiveModule] = useState<Module>(initialModule);
+  const [activeModule] = useState<Module>(initialModule);
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notice, setNotice] = useState("");
-  const [theme, setTheme] = useState<ThemePreference>("system");
-  const router = useRouter();
-
-  useEffect(() => {
+  const [theme, setTheme] = useState<ThemePreference>(() => {
+    if (typeof window === "undefined") return "system";
     const saved = window.localStorage.getItem(
       "aerovista-theme",
     ) as ThemePreference | null;
-    if (saved === "light" || saved === "dark" || saved === "system")
-      setTheme(saved);
-  }, []);
+    return saved === "light" || saved === "dark" || saved === "system"
+      ? saved
+      : "system";
+  });
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -63,14 +63,6 @@ export function AirlineSystem({
     setTheme(nextTheme);
     window.localStorage.setItem("aerovista-theme", nextTheme);
   }
-  function selectModule(module: Module) {
-    setActiveModule(module);
-    setSidebarOpen(false);
-    setNotice("");
-    router.push(
-      menu.find((item) => item.label === module)?.href ?? "/pages/dashboard",
-    );
-  }
   function showNotice(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 3000);
@@ -79,9 +71,9 @@ export function AirlineSystem({
   return (
     <div className="flex min-h-screen bg-[#f4f7f8] text-[#172b3a]">
       <aside
-        className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-20 flex w-[250px] flex-col overflow-hidden border-r border-[#dce5e8] bg-[#102f3c] text-white transition-transform lg:translate-x-0`}
+        className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} theme-sidebar fixed inset-y-0 left-0 z-20 flex w-[250px] flex-col overflow-hidden border-r transition-transform lg:translate-x-0`}
       >
-        <div className="flex h-[78px] items-center gap-2.5 border-b border-white/10 px-6">
+        <div className="sidebar-divider flex h-[78px] items-center gap-2.5 border-b px-6">
           <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-[#42b5a4] p-1">
             <Image
               src={airplaneIcon}
@@ -93,39 +85,69 @@ export function AirlineSystem({
             />
           </span>
           <div>
-            <strong className="block text-[15px] tracking-wide">
+            <strong className="sidebar-title block text-[15px] tracking-wide">
               Safty Airline
             </strong>
-            <span className="text-[9px] uppercase tracking-[1.5px] text-[#8daeb3]">
-              Airline system
+            <span className="sidebar-muted text-[9px] uppercase tracking-[1.5px]">
+              Airline / Flight Booking System
             </span>
           </div>
         </div>
         <div className="px-4 pt-7">
-          <p className="px-3 text-[9px] font-bold uppercase tracking-[1.8px] text-[#72929a]">
+          <p className="sidebar-section-label px-3 text-[9px] font-bold uppercase tracking-[1.8px]">
             Workspace
           </p>
           <nav className="mt-3 grid gap-1">
             {menu.map((item) => (
               <div key={item.label}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-3 text-left text-[12px] font-semibold transition ${activeModule === item.label ? "bg-[#1e5960] text-white shadow-[inset_3px_0_#55c7b5]" : "text-[#a2bcc0] hover:bg-white/5 hover:text-white"}`}
-                >
-                  <Icon name={item.icon} size={17} />
-                  {item.label}
-                </Link>
+                <div className="flex items-center">
+                  <Link
+                    href={item.href}
+                    className={`sidebar-link flex flex-1 items-center gap-3 rounded-lg px-3 py-3 text-left text-[12px] font-semibold transition ${activeModule === item.label || (item.label === "Settings" && (pathname === "/pages/settings/user" || pathname === "/pages/settings/roles")) ? "sidebar-link-active" : ""}`}
+                  >
+                    <Icon name={item.icon} size={17} />
+                    {item.label}
+                  </Link>
+                </div>
+                {item.label === "Flight Management" && (
+                  <div className="sidebar-subnav ml-5 grid border-l pl-3">
+                    <Link
+                      href="/pages/flights/airport"
+                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/airport" ? "sidebar-subnav-link-active" : ""}`}
+                    >
+                      Airport
+                    </Link>
+                    <Link
+                      href="/pages/flights/route"
+                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/route" ? "sidebar-subnav-link-active" : ""}`}
+                    >
+                      Route
+                    </Link>
+                    <Link
+                      href="/pages/flights/flight-list"
+                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/flight-list" ? "sidebar-subnav-link-active" : ""}`}
+                    >
+                      Flight List
+                    </Link>
+                    <Link
+                      href="/pages/flights/schedule"
+                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/schedule" ? "sidebar-subnav-link-active" : ""}`}
+                    >
+                      Schedule
+                    </Link>
+                  </div>
+                )}
                 {item.label === "Settings" && (
-                  <div className="ml-5 grid border-l border-white/10 pl-3">
+                  <div className="sidebar-subnav ml-5 grid border-l pl-3">
                     <Link
                       href="/pages/settings/user"
-                      className={`px-3 py-2 text-[11px] ${activeModule === "User" ? "text-white" : "text-[#8daeb3] hover:text-white"}`}
+                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${activeModule === "User" || pathname === "/pages/settings/user" ? "sidebar-subnav-link-active" : ""}`}
                     >
                       User
                     </Link>
                     <Link
                       href="/pages/settings/roles"
-                      className={`px-3 py-2 text-[11px] ${activeModule === "Roles" ? "text-white" : "text-[#8daeb3] hover:text-white"}`}
+                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${activeModule === "Roles" || pathname === "/pages/settings/roles" ? "sidebar-subnav-link-active" : ""}`}
                     >
                       Roles
                     </Link>
@@ -135,19 +157,19 @@ export function AirlineSystem({
             ))}
           </nav>
         </div>
-        <div className="mt-auto border-t border-white/10 p-4">
+        <div className="sidebar-divider mt-auto border-t p-4">
           <Link
             href="/pages/profile"
-            className="flex items-center gap-2.5 rounded-lg bg-white/5 p-3 transition hover:bg-white/10"
+            className="sidebar-profile flex items-center gap-2.5 rounded-lg p-3 transition"
           >
             <span className="grid h-8 w-8 place-items-center rounded-full bg-[#dceee8] text-[11px] font-bold text-[#0e6b69]">
               JD
             </span>
             <div className="min-w-0">
-              <strong className="block truncate text-[11px]">
+              <strong className="sidebar-title block truncate text-[11px]">
                 Jordan Davis
               </strong>
-              <span className="text-[9px] text-[#8daeb3]">Administrator</span>
+              <span className="sidebar-muted text-[9px]">Administrator</span>
             </div>
           </Link>
         </div>
@@ -213,7 +235,7 @@ export function AirlineSystem({
             </span>
           </div>
         </header>
-        <main className="mx-auto max-w-[1400px] p-5 pt-[98px] sm:p-8 sm:pt-[110px]">
+        <main className="module-content w-full p-5 pt-[98px] sm:p-8 sm:pt-[110px]">
           {notice && (
             <div className="fixed right-5 top-20 z-30 flex items-center gap-2 rounded-lg bg-[#173f4a] px-4 py-3 text-[11px] text-white shadow-xl">
               <Icon name="check" size={16} /> {notice}

@@ -3,7 +3,7 @@ export type Module =
   | "Book flight"
   | "Reservations"
   | "Passengers"
-  | "Flights"
+  | "Flight Management"
   | "Settings"
   | "User"
   | "Roles";

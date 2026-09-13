@@ -15,11 +15,27 @@ const fieldClass =
 const inputClass =
   "min-w-0 w-full border-0 bg-transparent text-[11px] text-[#172b3a] outline-0";
 
-export function FlightSearch({ overlap = true }: { overlap?: boolean }) {
+export type FlightSearchValues = {
+  from: string;
+  to: string;
+  departureDate: string;
+  returnDate: string;
+  passengers: number;
+};
+
+export function FlightSearch({
+  overlap = true,
+  onSearch,
+}: {
+  overlap?: boolean;
+  onSearch?: (values: FlightSearchValues) => void;
+}) {
   const [tripType, setTripType] = useState("Round trip");
   const [from, setFrom] = useState("New York (JFK)");
   const [to, setTo] = useState("London (LHR)");
   const [passengers, setPassengers] = useState("1 passenger");
+  const [departureDate, setDepartureDate] = useState("2026-10-18");
+  const [returnDate, setReturnDate] = useState("2026-10-25");
   const [message, setMessage] = useState("");
 
   function swapAirports() {
@@ -28,8 +44,26 @@ export function FlightSearch({ overlap = true }: { overlap?: boolean }) {
   }
   function searchFlights(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (from === to) {
+      setMessage("Choose a different origin and destination.");
+      return;
+    }
+    if (
+      new Date(departureDate) < new Date(new Date().toISOString().slice(0, 10))
+    ) {
+      setMessage("Departure date cannot be in the past.");
+      return;
+    }
+    const passengerCount = Number.parseInt(passengers, 10);
+    onSearch?.({
+      from: from.slice(-4, -1),
+      to: to.slice(-4, -1),
+      departureDate,
+      returnDate,
+      passengers: passengerCount,
+    });
     setMessage(
-      `Searching ${tripType.toLowerCase()} flights from ${from.split(" ")[0]} to ${to.split(" ")[0]}.`,
+      `Searching ${tripType.toLowerCase()} flights from ${from} to ${to}.`,
     );
   }
 
@@ -45,7 +79,7 @@ export function FlightSearch({ overlap = true }: { overlap?: boolean }) {
           </p>
           <h2
             id="search-heading"
-            className="mb-[22px] font-serif text-[25px] font-normal tracking-[-.7px]"
+            className="mb-[22px] text-[25px] font-semibold tracking-[-.7px]"
           >
             Where will you go next?
           </h2>
@@ -125,7 +159,9 @@ export function FlightSearch({ overlap = true }: { overlap?: boolean }) {
               <input
                 className={inputClass}
                 type="date"
-                defaultValue="2026-10-18"
+                value={departureDate}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={(event) => setDepartureDate(event.target.value)}
               />
             </span>
           </label>
@@ -139,7 +175,9 @@ export function FlightSearch({ overlap = true }: { overlap?: boolean }) {
                 <input
                   className={inputClass}
                   type="date"
-                  defaultValue="2026-10-25"
+                  value={returnDate}
+                  min={departureDate}
+                  onChange={(event) => setReturnDate(event.target.value)}
                 />
               </span>
             </label>

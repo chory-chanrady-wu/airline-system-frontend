@@ -38,7 +38,7 @@ export default function RolesPage() {
 
   return (
     <AirlineSystem initialModule="Roles">
-      <div className="max-w-full">
+      <div className="module-page">
         <PageTitle
           eyebrow="Settings / Roles"
           title="Roles & permissions"

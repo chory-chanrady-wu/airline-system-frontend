@@ -1,46 +1,242 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../components/airline-system";
 import { Icon } from "../../components/icons";
 import { PageTitle } from "../../components/page-title";
+import {
+  loadState,
+  register,
+  removePassenger,
+  type User,
+} from "../../services/airline-system";
 
 export default function PassengersPage() {
+  const [passengers, setPassengers] = useState<User[]>([]);
+  const [query, setQuery] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [message, setMessage] = useState("");
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+
+  function refresh() {
+    setPassengers(
+      loadState().users.filter((user) => user.role === "Passenger"),
+    );
+  }
+  useEffect(() => {
+    const timer = window.setTimeout(refresh, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const state = loadState();
+  const bookingCount = (id: string) =>
+    state.bookings.filter((booking) => booking.passengerId === id).length;
+  const activePassengers = passengers.filter(
+    (passenger) => bookingCount(passenger.id) > 0,
+  ).length;
+  const waitlistedPassengers = state.bookings.filter(
+    (booking) => booking.status === "Waitlisted",
+  ).length;
+  const visiblePassengers = passengers.filter((passenger) =>
+    `${passenger.name} ${passenger.email}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+
+  function createPassenger(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    try {
+      register(form.name, form.email, form.password, "Passenger");
+      setForm({ name: "", email: "", password: "" });
+      setShowForm(false);
+      refresh();
+      setMessage("Passenger account created successfully.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to create passenger.",
+      );
+    }
+  }
+
+  function deletePassenger(id: string) {
+    try {
+      removePassenger(id);
+      refresh();
+      setMessage("Passenger removed successfully.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to remove passenger.",
+      );
+    }
+  }
+
   return (
     <AirlineSystem initialModule="Passengers">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="module-page w-full">
         <PageTitle
           eyebrow="Customer records"
           title="Passengers"
-          action="Add passenger"
+          action={showForm ? "Close form" : "Add passenger"}
+          onAction={() => setShowForm((open) => !open)}
         />
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-[#dce5e8] bg-white p-5">
+        <section
+          className="grid gap-4 sm:grid-cols-3"
+          aria-label="Passenger analytics"
+        >
+          <div className="rounded-xl border border-[#dce5e8] bg-white p-5 shadow-sm">
             <p className="text-[11px] text-[#839198]">Registered passengers</p>
-            <strong className="mt-2 block text-2xl">3,642</strong>
-          </div>
-          <div className="rounded-xl border border-[#dce5e8] bg-white p-5">
-            <p className="text-[11px] text-[#839198]">Frequent travelers</p>
-            <strong className="mt-2 block text-2xl">842</strong>
-          </div>
-          <div className="rounded-xl border border-[#dce5e8] bg-white p-5">
-            <p className="text-[11px] text-[#839198]">New this month</p>
-            <strong className="mt-2 block text-2xl">126</strong>
-          </div>
-        </div>
-        <div className="mt-7 rounded-xl border border-[#dce5e8] bg-white p-6">
-          <div className="flex items-center gap-4 border-b border-[#eef2f3] pb-4">
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-[#dceee8] text-[#0e6b69]">
-              <Icon name="user" size={19} />
+            <strong className="mt-2 block text-2xl">{passengers.length}</strong>
+            <span className="mt-1 block text-[10px] text-[#0e6b69]">
+              User hash table
             </span>
+          </div>
+          <div className="rounded-xl border border-[#dce5e8] bg-white p-5 shadow-sm">
+            <p className="text-[11px] text-[#839198]">Active travelers</p>
+            <strong className="mt-2 block text-2xl">{activePassengers}</strong>
+            <span className="mt-1 block text-[10px] text-[#0e6b69]">
+              At least one booking
+            </span>
+          </div>
+          <div className="rounded-xl border border-[#dce5e8] bg-white p-5 shadow-sm">
+            <p className="text-[11px] text-[#839198]">Waitlisted passengers</p>
+            <strong className="mt-2 block text-2xl">
+              {waitlistedPassengers}
+            </strong>
+            <span className="mt-1 block text-[10px] text-[#b1863f]">
+              FIFO waitlist
+            </span>
+          </div>
+        </section>
+        {showForm && (
+          <form
+            onSubmit={createPassenger}
+            className="mt-6 rounded-xl border border-[#dce5e8] bg-white p-6 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#e1f2ed] text-[#0e6b69]">
+                <Icon name="user" size={18} />
+              </span>
+              <div>
+                <h3 className="font-semibold">Add passenger account</h3>
+                <p className="mt-1 text-[11px] text-[#839198]">
+                  Create a Passenger login for the booking system.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <input
+                required
+                placeholder="Full name"
+                value={form.name}
+                onChange={(event) =>
+                  setForm({ ...form, name: event.target.value })
+                }
+                className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
+              />
+              <input
+                required
+                type="email"
+                placeholder="Email address"
+                value={form.email}
+                onChange={(event) =>
+                  setForm({ ...form, email: event.target.value })
+                }
+                className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
+              />
+              <input
+                required
+                minLength={6}
+                type="password"
+                placeholder="Temporary password"
+                value={form.password}
+                onChange={(event) =>
+                  setForm({ ...form, password: event.target.value })
+                }
+                className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
+              />
+            </div>
+            <button className="mt-4 rounded-lg bg-[#0e6b69] px-4 py-2.5 text-[11px] font-bold text-white">
+              Create passenger
+            </button>
+          </form>
+        )}
+        {message && (
+          <p
+            className="my-4 rounded-lg bg-[#eef8f5] px-4 py-3 text-[11px] text-[#0e6b69]"
+            role="status"
+          >
+            {message}
+          </p>
+        )}
+        <section className="mt-6 overflow-hidden rounded-xl border border-[#dce5e8] bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eef2f3] p-5">
             <div>
-              <h3 className="font-semibold">Passenger directory</h3>
-              <p className="mt-1 text-[11px] text-[#839198]">
-                Search and manage customer travel profiles.
+              <p className="text-[10px] font-bold uppercase tracking-[1.5px] text-[#5b9994]">
+                Customer directory
               </p>
+              <h3 className="mt-1 text-lg font-semibold">Passenger profiles</h3>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-[#dce5e8] px-3 py-2 text-[#94a2a6]">
+              <Icon name="search" size={16} />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search passengers"
+                className="w-48 bg-transparent text-[11px] outline-none"
+              />
             </div>
           </div>
-          <div className="mt-5 flex h-32 items-center justify-center rounded-lg border border-dashed border-[#cbdcdf] text-[11px] text-[#839198]">
-            Passenger directory connected to your database
+          <div className="overflow-x-auto">
+            <div className="min-w-full">
+              <div className="grid grid-cols-[1.3fr_1.7fr_100px_130px_100px] bg-[#f7fafb] px-5 py-3 text-[10px] font-bold uppercase tracking-[1px] text-[#839198]">
+                <span>Passenger</span>
+                <span>Email</span>
+                <span>Bookings</span>
+                <span>Status</span>
+                <span>Action</span>
+              </div>
+              {visiblePassengers.map((passenger) => {
+                const bookings = bookingCount(passenger.id);
+                return (
+                  <div
+                    key={passenger.id}
+                    className="grid grid-cols-[1.3fr_1.7fr_100px_130px_100px] items-center border-t border-[#eef2f3] px-5 py-4 text-[11px]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-8 w-8 place-items-center rounded-full bg-[#dceee8] text-[10px] font-bold text-[#0e6b69]">
+                        {passenger.name
+                          .split(" ")
+                          .map((part) => part[0])
+                          .join("")
+                          .slice(0, 2)}
+                      </span>
+                      <strong>{passenger.name}</strong>
+                    </div>
+                    <span className="text-[#71838a]">{passenger.email}</span>
+                    <span>{bookings}</span>
+                    <span>
+                      <span className="rounded-full bg-[#e7f5ed] px-2 py-1 text-[9px] font-bold text-[#4d9b73]">
+                        Active
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => deletePassenger(passenger.id)}
+                      className="text-left font-semibold text-[#c56d61]"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+          {visiblePassengers.length === 0 && (
+            <p className="p-8 text-center text-[11px] text-[#839198]">
+              No passengers match your search.
+            </p>
+          )}
+        </section>
       </div>
     </AirlineSystem>
   );

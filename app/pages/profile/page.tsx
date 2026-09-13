@@ -4,7 +4,7 @@ import { PageTitle } from "../../components/page-title";
 export default function ProfilePage() {
   return (
     <AirlineSystem initialModule="User">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="module-page">
         <PageTitle eyebrow="My account" title="Jordan Davis" />
         <div className="grid w-full gap-5 lg:grid-cols-[280px_1fr]">
           <section className="rounded-xl border border-[#dce5e8] bg-white p-6">

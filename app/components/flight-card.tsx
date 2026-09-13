@@ -12,6 +12,7 @@ type FlightCardProps = {
   stops: string;
   price: string;
   featured?: boolean;
+  onSelect?: () => void;
 };
 
 export function FlightCard({
@@ -26,6 +27,7 @@ export function FlightCard({
   stops,
   price,
   featured,
+  onSelect,
 }: FlightCardProps) {
   return (
     <article
@@ -47,9 +49,7 @@ export function FlightCard({
       </div>
       <div className="col-span-2 row-start-2 grid grid-cols-[auto_1fr_auto] items-center gap-2.5 sm:col-span-1 sm:row-auto">
         <div>
-          <strong className="block font-serif text-lg font-normal">
-            {departure}
-          </strong>
+          <strong className="block text-lg font-semibold">{departure}</strong>
           <span className="mt-[3px] block text-[9px] text-[#86969b]">
             {from}
           </span>
@@ -59,9 +59,7 @@ export function FlightCard({
           <Icon name="plane" size={16} />
         </div>
         <div className="text-right">
-          <strong className="block font-serif text-lg font-normal">
-            {arrival}
-          </strong>
+          <strong className="block text-lg font-semibold">{arrival}</strong>
           <span className="mt-[3px] block text-[9px] text-[#86969b]">{to}</span>
         </div>
       </div>
@@ -76,8 +74,10 @@ export function FlightCard({
         <span className="self-end mb-[5px] text-[9px] text-[#8d9b9d]">
           from
         </span>
-        <strong className="font-serif text-xl font-normal">{price}</strong>
+        <strong className="text-xl font-semibold">{price}</strong>
         <button
+          type="button"
+          onClick={onSelect}
           className="grid h-[30px] w-[30px] place-items-center rounded-full border-0 bg-[#eff6f4] text-[#0e6b69] hover:bg-[#0e6b69] hover:text-white"
           aria-label={`Select ${airline} flight`}
         >
