@@ -39,9 +39,21 @@ export default function RoutePage() {
       if (backendRoutes.length > 0 || backendAirports.length > 0) {
         setRoutes(
           backendRoutes.map((route) => ({
-            from: String((route as Record<string, unknown>).from ?? ""),
-            to: String((route as Record<string, unknown>).to ?? ""),
-            distance: Number((route as Record<string, unknown>).distance ?? 0),
+            from: String(
+              (route as Record<string, unknown>).from ??
+                (route as Record<string, unknown>).fromAirportCode ??
+                "",
+            ),
+            to: String(
+              (route as Record<string, unknown>).to ??
+                (route as Record<string, unknown>).toAirportCode ??
+                "",
+            ),
+            distance: Number(
+              (route as Record<string, unknown>).distance ??
+                (route as Record<string, unknown>).distanceKm ??
+                0,
+            ),
           })),
         );
         setAirports(

@@ -32,12 +32,18 @@ export default function ReservationsPage() {
               (booking as Record<string, unknown>).passengerId ?? "",
             ),
             passenger: String(
-              (booking as Record<string, unknown>).passenger ?? "Guest",
+              (booking as Record<string, unknown>).passenger ??
+                (booking as Record<string, unknown>).passengerName ??
+                "Guest",
             ),
             flightId: String(
               (booking as Record<string, unknown>).flightId ?? "",
             ),
-            route: String((booking as Record<string, unknown>).route ?? ""),
+            route: String(
+              (booking as Record<string, unknown>).route ??
+                (booking as Record<string, unknown>).flightNumber ??
+                "",
+            ),
             date: String(
               (booking as Record<string, unknown>).date ??
                 new Date().toISOString().slice(0, 10),

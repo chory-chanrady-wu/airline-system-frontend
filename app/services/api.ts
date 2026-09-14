@@ -10,7 +10,20 @@ export type ApiUser = {
   name?: string;
   email?: string;
   role?: string;
+  roleName?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
   password?: string;
+};
+
+export type ApiRole = {
+  id?: string | number;
+  name?: string;
+  description?: string;
+  permissions?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type ApiFlight = {
@@ -124,6 +137,39 @@ export async function loginWithApi(email: string, password: string) {
   });
 }
 
+export async function fetchUsersFromApi() {
+  const result = await apiProxy<unknown>("/users", { method: "GET" });
+  return unpackArrayResult<ApiUser>(result);
+}
+
+export async function fetchRolesFromApi() {
+  const result = await apiProxy<unknown>("/roles", { method: "GET" });
+  return unpackArrayResult<ApiRole>(result);
+}
+
+export async function createRoleWithApi(payload: Record<string, unknown>) {
+  return apiProxy<unknown>("/roles", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateRoleWithApi(
+  roleId: string | number,
+  payload: Record<string, unknown>,
+) {
+  return apiProxy<unknown>(`/roles/${encodeURIComponent(roleId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteRoleWithApi(roleId: string | number) {
+  return apiProxy<unknown>(`/roles/${encodeURIComponent(roleId)}`, {
+    method: "DELETE",
+  });
+}
+
 export function unpackArrayResult<T>(result: unknown): T[] {
   if (Array.isArray(result)) return result as T[];
 
@@ -218,9 +264,14 @@ export async function createPassengerWithApi(payload: Record<string, unknown>) {
 
 export async function fetchRoutesFromApi() {
   const result = await apiProxy<unknown>("/routes", { method: "GET" });
-  return unpackArrayResult<{ from?: string; to?: string; distance?: number }>(
-    result,
-  );
+  return unpackArrayResult<{
+    from?: string;
+    to?: string;
+    fromAirportCode?: string;
+    toAirportCode?: string;
+    distance?: number;
+    distanceKm?: number;
+  }>(result);
 }
 
 export async function createRouteWithApi(payload: Record<string, unknown>) {

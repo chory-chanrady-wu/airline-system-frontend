@@ -26,9 +26,15 @@ export default function PassengersPage() {
           backendPassengers.map((passenger) => ({
             id: String((passenger as Record<string, unknown>).id ?? ""),
             name: String(
-              (passenger as Record<string, unknown>).name ?? "Passenger",
+              (passenger as Record<string, unknown>).userName ??
+                (passenger as Record<string, unknown>).name ??
+                "Passenger",
             ),
-            email: String((passenger as Record<string, unknown>).email ?? ""),
+            email: String(
+              (passenger as Record<string, unknown>).userEmail ??
+                (passenger as Record<string, unknown>).email ??
+                "",
+            ),
             password: String(
               (passenger as Record<string, unknown>).password ?? "",
             ),

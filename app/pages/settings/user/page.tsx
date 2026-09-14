@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
+import { fetchUsersFromApi, type ApiUser } from "../../../services/api";
 
-type UserRow = [string, string, string, string, string];
-const users: UserRow[] = [];
+type UserRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  lastLogin: string;
+};
 
 export default function UserSettingsPage() {
   const [showForm, setShowForm] = useState(false);
-  const [userRows, setUserRows] = useState<UserRow[]>(users);
+  const [userRows, setUserRows] = useState<UserRow[]>([]);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [error, setError] = useState("");
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -18,25 +27,70 @@ export default function UserSettingsPage() {
     status: "Active",
   });
 
+  useEffect(() => {
+    let active = true;
+    void fetchUsersFromApi()
+      .then((users) => {
+        if (!active) return;
+        setUserRows(
+          users.map((user: ApiUser) => ({
+            id: String(user.id ?? user.email ?? ""),
+            name: String(user.name ?? ""),
+            email: String(user.email ?? ""),
+            role: String(user.roleName ?? user.role ?? ""),
+            status: String(user.status ?? ""),
+            lastLogin: user.updatedAt
+              ? new Date(user.updatedAt).toLocaleDateString()
+              : "—",
+          })),
+        );
+        setError("");
+      })
+      .catch((requestError: unknown) => {
+        if (active) {
+          setError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Unable to load users.",
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   function createUser(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!form.name.trim() || !form.email.trim()) return;
     setUserRows([
       ...userRows,
-      [form.name, form.email, form.role, form.status, "Never"],
+      {
+        id: `local-${Date.now()}`,
+        name: form.name,
+        email: form.email,
+        role: form.role,
+        status: form.status,
+        lastLogin: "—",
+      },
     ]);
     setForm({ name: "", email: "", role: "Support agent", status: "Active" });
     setShowForm(false);
   }
 
   function editUser(user: UserRow) {
-    setForm({ name: user[0], email: user[1], role: user[2], status: user[3] });
+    setForm({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+    });
     setShowForm(true);
   }
 
   function confirmDelete() {
     if (pendingDelete) {
-      setUserRows(userRows.filter((user) => user[1] !== pendingDelete));
+      setUserRows(userRows.filter((user) => user.email !== pendingDelete));
       setPendingDelete(null);
     }
   }
@@ -155,8 +209,11 @@ export default function UserSettingsPage() {
           <input
             className="w-full border-0 bg-transparent text-[11px] outline-none"
             placeholder="Search users"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
           />
         </div>
+        {error && <p className="mb-4 text-[11px] text-[#c56d61]">{error}</p>}
         <div className="overflow-hidden rounded-xl border border-[#dce5e8] bg-white">
           <div className="grid min-w-[900px] grid-cols-[1.2fr_1.4fr_1.2fr_100px_120px_140px] bg-[#f7fafb] px-5 py-3 text-[10px] font-bold uppercase tracking-[1px] text-[#839198]">
             <span>User</span>
@@ -166,40 +223,44 @@ export default function UserSettingsPage() {
             <span>Last login</span>
             <span>Actions</span>
           </div>
-          {userRows.map(([name, email, role, status, lastLogin]) => (
-            <div
-              className="grid min-w-[900px] grid-cols-[1.2fr_1.4fr_1.2fr_100px_120px_140px] items-center border-t border-[#eef2f3] px-5 py-4 text-[11px]"
-              key={email}
-            >
-              <strong>{name}</strong>
-              <span className="text-[#71838a]">{email}</span>
-              <span className="text-[#71838a]">{role}</span>
-              <span>
-                <span
-                  className={`rounded-full px-2 py-1 text-[9px] font-bold ${status === "Active" ? "bg-[#e7f5ed] text-[#4d9b73]" : "bg-[#fbeae7] text-[#c56d61]"}`}
-                >
-                  {status}
+          {userRows
+            .filter((user) =>
+              `${user.name} ${user.email} ${user.role}`
+                .toLowerCase()
+                .includes(query.toLowerCase()),
+            )
+            .map((user) => (
+              <div
+                className="grid min-w-[900px] grid-cols-[1.2fr_1.4fr_1.2fr_100px_120px_140px] items-center border-t border-[#eef2f3] px-5 py-4 text-[11px]"
+                key={user.id}
+              >
+                <strong>{user.name}</strong>
+                <span className="text-[#71838a]">{user.email}</span>
+                <span className="text-[#71838a]">{user.role}</span>
+                <span>
+                  <span
+                    className={`rounded-full px-2 py-1 text-[9px] font-bold ${user.status === "Active" ? "bg-[#e7f5ed] text-[#4d9b73]" : "bg-[#fbeae7] text-[#c56d61]"}`}
+                  >
+                    {user.status || "—"}
+                  </span>
                 </span>
-              </span>
-              <span className="text-[#71838a]">{lastLogin}</span>
-              <span className="flex gap-2">
-                <button
-                  onClick={() =>
-                    editUser([name, email, role, status, lastLogin])
-                  }
-                  className="font-semibold text-[#0e6b69] hover:underline"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => setPendingDelete(email)}
-                  className="font-semibold text-[#c56d61] hover:underline"
-                >
-                  Delete
-                </button>
-              </span>
-            </div>
-          ))}
+                <span className="text-[#71838a]">{user.lastLogin}</span>
+                <span className="flex gap-2">
+                  <button
+                    onClick={() => editUser(user)}
+                    className="font-semibold text-[#0e6b69] hover:underline"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setPendingDelete(user.email)}
+                    className="font-semibold text-[#c56d61] hover:underline"
+                  >
+                    Delete
+                  </button>
+                </span>
+              </div>
+            ))}
         </div>
       </div>
     </AirlineSystem>
