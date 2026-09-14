@@ -3,13 +3,6 @@
 import { useState } from "react";
 import { Icon } from "./icons";
 
-const destinations = [
-  "New York (JFK)",
-  "London (LHR)",
-  "Tokyo (NRT)",
-  "Paris (CDG)",
-  "Singapore (SIN)",
-];
 const fieldClass =
   "flex h-[43px] items-center gap-2 rounded-lg border border-[#dfe7e9] px-2.5 text-[#0e6b69]";
 const inputClass =
@@ -31,11 +24,11 @@ export function FlightSearch({
   onSearch?: (values: FlightSearchValues) => void;
 }) {
   const [tripType, setTripType] = useState("Round trip");
-  const [from, setFrom] = useState("New York (JFK)");
-  const [to, setTo] = useState("London (LHR)");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [passengers, setPassengers] = useState("1 passenger");
-  const [departureDate, setDepartureDate] = useState("2026-10-18");
-  const [returnDate, setReturnDate] = useState("2026-10-25");
+  const [departureDate, setDepartureDate] = useState("");
+  const [returnDate, setReturnDate] = useState("");
   const [message, setMessage] = useState("");
 
   function swapAirports() {
@@ -119,9 +112,7 @@ export function FlightSearch({
                 value={from}
                 onChange={(event) => setFrom(event.target.value)}
               >
-                {destinations.map((destination) => (
-                  <option key={destination}>{destination}</option>
-                ))}
+                <option value="">Select origin</option>
               </select>
             </span>
           </label>
@@ -144,9 +135,7 @@ export function FlightSearch({
                 value={to}
                 onChange={(event) => setTo(event.target.value)}
               >
-                {destinations.map((destination) => (
-                  <option key={destination}>{destination}</option>
-                ))}
+                <option value="">Select destination</option>
               </select>
             </span>
           </label>

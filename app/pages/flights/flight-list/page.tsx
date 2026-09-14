@@ -6,21 +6,52 @@ import { PageTitle } from "../../../components/page-title";
 import {
   displayPrice,
   findFlight,
-  loadState,
-  removeFlight,
   type Flight,
 } from "../../../services/airline-system";
+import {
+  deleteFlightWithApi,
+  fetchFlightsFromApi,
+} from "../../../services/api";
 
 export default function FlightListPage() {
   const [flights, setFlights] = useState<Flight[]>([]);
   const [query, setQuery] = useState("");
   const [lookup, setLookup] = useState("");
   const [found, setFound] = useState<Flight | undefined>();
-  function refresh() {
-    setFlights(loadState().flights);
+  const [apiNotice, setApiNotice] = useState("");
+
+  async function refresh() {
+    try {
+      const backendFlights = await fetchFlightsFromApi();
+      if (backendFlights.length > 0) {
+        setFlights(
+          backendFlights.map((flight) => ({
+            id: String(flight.id ?? flight.flightId ?? ""),
+            airline: flight.airline ?? "",
+            logo: (flight.airline ?? "AV").slice(0, 2).toUpperCase(),
+            from: flight.from ?? "",
+            to: flight.to ?? "",
+            departure: flight.departure ?? "",
+            arrival: flight.arrival ?? "",
+            departureTime: flight.departureTime ?? new Date().toISOString(),
+            arrivalTime: flight.arrivalTime ?? new Date().toISOString(),
+            price: Number(flight.price ?? 0),
+            capacity: Number(flight.capacity ?? 0),
+            seatsAvailable: Number(flight.seatsAvailable ?? 0),
+          })),
+        );
+        setApiNotice("Live flight list loaded from backend.");
+        return;
+      }
+    } catch {
+      setApiNotice("Backend unavailable — flight data cannot be loaded.");
+    }
+    setFlights([]);
   }
   useEffect(() => {
-    const timer = window.setTimeout(refresh, 0);
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
   const visible = flights.filter((flight) =>
@@ -35,6 +66,11 @@ export default function FlightListPage() {
           eyebrow="Flight Management / Flight List"
           title="Flight list"
         />
+        {apiNotice && (
+          <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
+            {apiNotice}
+          </div>
+        )}
         <div className="grid gap-4 lg:grid-cols-[1fr_1.5fr]">
           <form
             onSubmit={(event) => {
@@ -99,9 +135,13 @@ export default function FlightListPage() {
               </span>
               <button
                 type="button"
-                onClick={() => {
-                  removeFlight(flight.id);
-                  refresh();
+                onClick={async () => {
+                  try {
+                    await deleteFlightWithApi(flight.id);
+                  } catch {
+                    setApiNotice("Unable to remove flight from backend.");
+                  }
+                  await refresh();
                 }}
                 className="font-semibold text-[#c56d61]"
               >

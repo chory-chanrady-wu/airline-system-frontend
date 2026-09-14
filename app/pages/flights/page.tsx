@@ -39,7 +39,7 @@ export default function FlightsPage() {
   const [board, setBoard] = useState<"Departures" | "Arrivals">("Departures");
 
   function refresh() {
-    setFlights(loadState().flights);
+    setFlights([]);
   }
   useEffect(() => {
     const timer = window.setTimeout(refresh, 0);

@@ -10,57 +10,167 @@ import {
 import { PageTitle } from "../../components/page-title";
 import {
   getSession,
-  loadState,
-  bookFlight,
   findItineraries,
-  searchFlights,
   toFlightCard,
   type Flight,
   type User,
 } from "../../services/airline-system";
+import {
+  createBookingWithApi,
+  fetchAirportsFromApi,
+  fetchFlightsFromApi,
+  searchFlightsFromApi,
+} from "../../services/api";
 
 export default function BookFlightPage() {
-  const [availableFlights, setAvailableFlights] = useState<Flight[]>(() =>
-    loadState().flights.filter(
-      (flight) => flight.from === "JFK" && flight.to === "LHR",
-    ),
-  );
-  const [session] = useState<User | null>(
-    () =>
-      getSession() ??
-      loadState().users.find((user) => user.role === "Passenger") ??
-      null,
-  );
+  const [availableFlights, setAvailableFlights] = useState<Flight[]>([]);
+  const [session] = useState<User | null>(() => getSession());
   const [message, setMessage] = useState("");
-  const airports = loadState().airports;
-  const [routeFrom, setRouteFrom] = useState("JFK");
-  const [routeTo, setRouteTo] = useState("NRT");
+  const [airports, setAirports] = useState<
+    Awaited<ReturnType<typeof fetchAirportsFromApi>>
+  >([]);
+  const [apiNotice, setApiNotice] = useState("");
+  const [routeFrom, setRouteFrom] = useState("");
+  const [routeTo, setRouteTo] = useState("");
   const [itineraries, setItineraries] = useState<ReturnType<
     typeof findItineraries
   > | null>(null);
 
-  function handleSearch(values: FlightSearchValues) {
-    setAvailableFlights(
-      searchFlights(values.from, values.to, values.departureDate),
-    );
+  useState(() => {
+    void (async () => {
+      try {
+        const backendAirports = await fetchAirportsFromApi();
+        if (backendAirports.length > 0) {
+          setAirports(
+            backendAirports.map((airport) => ({
+              code: String(airport.code ?? ""),
+              city: String(airport.city ?? ""),
+              latitude: airport.latitude,
+              longitude: airport.longitude,
+            })),
+          );
+        }
+      } catch {
+        setApiNotice("Backend unavailable — airport data cannot be loaded.");
+      }
+    })();
+  });
+
+  async function handleSearch(values: FlightSearchValues) {
+    try {
+      const backendFlights = await searchFlightsFromApi(
+        values.from,
+        values.to,
+        values.departureDate,
+      );
+      if (
+        backendFlights &&
+        Array.isArray(backendFlights) &&
+        backendFlights.length > 0
+      ) {
+        setAvailableFlights(
+          backendFlights.map((flight) => ({
+            id: String((flight as Record<string, unknown>).id ?? ""),
+            airline: String((flight as Record<string, unknown>).airline ?? ""),
+            logo: String((flight as Record<string, unknown>).airline ?? "AV")
+              .slice(0, 2)
+              .toUpperCase(),
+            from: String(
+              (flight as Record<string, unknown>).from ?? values.from,
+            ),
+            to: String((flight as Record<string, unknown>).to ?? values.to),
+            departure: String(
+              (flight as Record<string, unknown>).departure ?? "",
+            ),
+            arrival: String((flight as Record<string, unknown>).arrival ?? ""),
+            departureTime: String(
+              (flight as Record<string, unknown>).departureTime ??
+                new Date().toISOString(),
+            ),
+            arrivalTime: String(
+              (flight as Record<string, unknown>).arrivalTime ??
+                new Date().toISOString(),
+            ),
+            price: Number((flight as Record<string, unknown>).price ?? 0),
+            capacity: Number((flight as Record<string, unknown>).capacity ?? 0),
+            seatsAvailable: Number(
+              (flight as Record<string, unknown>).seatsAvailable ?? 0,
+            ),
+          })),
+        );
+        setApiNotice("Live flight search results loaded from backend.");
+        return;
+      }
+    } catch {
+      setApiNotice("Backend unavailable — flight search is unavailable.");
+    }
+    setAvailableFlights([]);
   }
 
-  function selectFlight(flightId: string) {
+  async function selectFlight(flightId: string) {
     if (!session) {
       setMessage("Log in as a passenger before booking a seat.");
       return;
     }
     try {
-      const booking = bookFlight(flightId, session);
-      setMessage(
-        booking.status === "Confirmed"
-          ? `Booking ${booking.id} confirmed.`
-          : `Flight full. You are waitlisted at position ${booking.waitlistPosition}.`,
-      );
+      const bookingPayload = {
+        flightId,
+        passengerId: session.id,
+        passenger: session.name,
+      };
+      const backendBooking = await createBookingWithApi(bookingPayload);
+      if (backendBooking && typeof backendBooking === "object") {
+        const payload = backendBooking as Record<string, unknown>;
+        const id = String(payload.id ?? flightId);
+        const status = String(payload.status ?? "Confirmed");
+        const waitlistPosition = payload.waitlistPosition;
+        setMessage(
+          status === "Confirmed"
+            ? `Booking ${id} confirmed.`
+            : `Flight full. You are waitlisted at position ${waitlistPosition}.`,
+        );
+      }
       setAvailableFlights(
-        loadState().flights.filter(
-          (flight) => flight.from === "JFK" && flight.to === "LHR",
-        ),
+        await (async () => {
+          try {
+            const backendFlights = await fetchFlightsFromApi();
+            if (backendFlights.length > 0) {
+              return backendFlights.map((flight) => ({
+                id: String((flight as Record<string, unknown>).id ?? ""),
+                airline: String(
+                  (flight as Record<string, unknown>).airline ?? "",
+                ),
+                logo: String((flight as Record<string, unknown>).airline ?? "")
+                  .slice(0, 2)
+                  .toUpperCase(),
+                from: String((flight as Record<string, unknown>).from ?? ""),
+                to: String((flight as Record<string, unknown>).to ?? ""),
+                departure: String(
+                  (flight as Record<string, unknown>).departure ?? "",
+                ),
+                arrival: String(
+                  (flight as Record<string, unknown>).arrival ?? "",
+                ),
+                departureTime: String(
+                  (flight as Record<string, unknown>).departureTime ??
+                    new Date().toISOString(),
+                ),
+                arrivalTime: String(
+                  (flight as Record<string, unknown>).arrivalTime ??
+                    new Date().toISOString(),
+                ),
+                price: Number((flight as Record<string, unknown>).price ?? 0),
+                capacity: Number(
+                  (flight as Record<string, unknown>).capacity ?? 0,
+                ),
+                seatsAvailable: Number(
+                  (flight as Record<string, unknown>).seatsAvailable ?? 0,
+                ),
+              }));
+            }
+          } catch {}
+          return [];
+        })(),
       );
     } catch (error) {
       setMessage(
@@ -74,6 +184,11 @@ export default function BookFlightPage() {
       <div className="module-page">
         <PageTitle eyebrow="Reservation workspace" title="Book a new flight" />
         <div className="w-full">
+          {apiNotice && (
+            <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
+              {apiNotice}
+            </div>
+          )}
           <FlightSearch overlap={false} onSearch={handleSearch} />
           <div className="mt-8">
             <div className="mb-4">

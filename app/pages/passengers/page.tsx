@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../components/airline-system";
 import { Icon } from "../../components/icons";
 import { PageTitle } from "../../components/page-title";
+import { loadState, type User } from "../../services/airline-system";
 import {
-  loadState,
-  register,
-  removePassenger,
-  type User,
-} from "../../services/airline-system";
+  createPassengerWithApi,
+  deletePassengerWithApi,
+  fetchPassengersFromApi,
+} from "../../services/api";
 
 export default function PassengersPage() {
   const [passengers, setPassengers] = useState<User[]>([]);
@@ -17,14 +17,40 @@ export default function PassengersPage() {
   const [showForm, setShowForm] = useState(false);
   const [message, setMessage] = useState("");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [apiNotice, setApiNotice] = useState("");
 
-  function refresh() {
-    setPassengers(
-      loadState().users.filter((user) => user.role === "Passenger"),
-    );
+  async function refresh() {
+    try {
+      const backendPassengers = await fetchPassengersFromApi();
+      if (backendPassengers.length > 0) {
+        setPassengers(
+          backendPassengers.map((passenger) => ({
+            id: String((passenger as Record<string, unknown>).id ?? ""),
+            name: String(
+              (passenger as Record<string, unknown>).name ?? "Passenger",
+            ),
+            email: String((passenger as Record<string, unknown>).email ?? ""),
+            password: String(
+              (passenger as Record<string, unknown>).password ?? "",
+            ),
+            role:
+              ((passenger as Record<string, unknown>).role as
+                | "Passenger"
+                | "Admin") ?? "Passenger",
+          })),
+        );
+        setApiNotice("Live passenger directory loaded from backend.");
+        return;
+      }
+    } catch {
+      setApiNotice("Backend unavailable — passenger data cannot be loaded.");
+    }
+    setPassengers([]); // Clear passengers to prevent reading local demo records
   }
   useEffect(() => {
-    const timer = window.setTimeout(refresh, 0);
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -43,30 +69,37 @@ export default function PassengersPage() {
       .includes(query.toLowerCase()),
   );
 
-  function createPassenger(event: React.FormEvent<HTMLFormElement>) {
+  async function createPassenger(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
-      register(form.name, form.email, form.password, "Passenger");
+      await createPassengerWithApi({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        role: "Passenger",
+      });
       setForm({ name: "", email: "", password: "" });
       setShowForm(false);
-      refresh();
+      await refresh();
       setMessage("Passenger account created successfully.");
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Unable to create passenger.",
       );
+      await refresh();
     }
   }
 
-  function deletePassenger(id: string) {
+  async function deletePassenger(id: string) {
     try {
-      removePassenger(id);
-      refresh();
+      await deletePassengerWithApi(id);
+      await refresh();
       setMessage("Passenger removed successfully.");
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Unable to remove passenger.",
       );
+      await refresh();
     }
   }
 
@@ -79,6 +112,11 @@ export default function PassengersPage() {
           action={showForm ? "Close form" : "Add passenger"}
           onAction={() => setShowForm((open) => !open)}
         />
+        {apiNotice && (
+          <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
+            {apiNotice}
+          </div>
+        )}
         <section
           className="grid gap-4 sm:grid-cols-3"
           aria-label="Passenger analytics"

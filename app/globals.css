@@ -152,6 +152,20 @@
     color: #e8f1f2 !important;
   }
 
+  html[data-theme="dark"] .radar-map-toolbar {
+    background: #142b35 !important;
+    border-color: #294650 !important;
+    color: #e8f1f2 !important;
+  }
+
+  html[data-theme="dark"] .radar-map-toolbar input {
+    color: #e8f1f2 !important;
+  }
+
+  html[data-theme="dark"] .radar-details-panel {
+    background: rgba(20, 43, 53, 0.95) !important;
+  }
+
   html[data-theme="dark"] .sidebar-divider,
   html[data-theme="dark"] .sidebar-subnav {
     border-color: rgba(255, 255, 255, 0.1);
@@ -242,5 +256,182 @@
   html[data-theme="dark"] option {
     background: #142b35 !important;
     color: #e8f1f2 !important;
+  }
+}
+
+@keyframes login-fly-one {
+  0% {
+    transform: translate3d(-12vw, 12vh, 0) rotate(-16deg);
+    opacity: 0;
+  }
+  12%,
+  78% {
+    opacity: 0.72;
+  }
+  100% {
+    transform: translate3d(110vw, -34vh, 0) rotate(-16deg);
+    opacity: 0;
+  }
+}
+
+@keyframes login-fly-two {
+  0% {
+    transform: translate3d(110vw, 18vh, 0) rotate(164deg);
+    opacity: 0;
+  }
+  15%,
+  78% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: translate3d(-24vw, -26vh, 0) rotate(164deg);
+    opacity: 0;
+  }
+}
+
+@keyframes login-fly-three {
+  0% {
+    transform: translate3d(-8vw, 86vh, 0) rotate(-28deg);
+    opacity: 0;
+  }
+  16%,
+  80% {
+    opacity: 0.28;
+  }
+  100% {
+    transform: translate3d(104vw, 22vh, 0) rotate(-28deg);
+    opacity: 0;
+  }
+}
+
+@keyframes login-orb-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(24px, -18px, 0) scale(1.06);
+  }
+}
+
+.login-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.16;
+  background-image:
+    linear-gradient(rgba(166, 229, 218, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(166, 229, 218, 0.2) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 25%,
+    black 75%,
+    transparent
+  );
+}
+
+.login-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(2px);
+  pointer-events: none;
+  animation: login-orb-float 9s ease-in-out infinite;
+}
+
+.login-orb-one {
+  top: -12rem;
+  left: 16%;
+  width: 31rem;
+  height: 31rem;
+  background: radial-gradient(
+    circle,
+    rgba(34, 171, 164, 0.28),
+    transparent 68%
+  );
+}
+
+.login-orb-two {
+  right: -10rem;
+  bottom: -14rem;
+  width: 34rem;
+  height: 34rem;
+  background: radial-gradient(
+    circle,
+    rgba(114, 224, 194, 0.18),
+    transparent 68%
+  );
+  animation-delay: -4s;
+}
+
+.login-flight {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #72e0c2;
+  filter: drop-shadow(0 0 8px rgba(114, 224, 194, 0.45));
+  pointer-events: none;
+}
+
+.login-flight-line {
+  display: block;
+  width: 5rem;
+  border-top: 1px dashed currentColor;
+  opacity: 0.55;
+}
+
+.login-aircraft {
+  display: block;
+  height: auto;
+  object-fit: contain;
+  opacity: 0.78;
+}
+
+.login-aircraft-large {
+  width: 5.25rem;
+}
+
+.login-aircraft-medium {
+  width: 4.375rem;
+}
+
+.login-aircraft-small {
+  width: 3.875rem;
+}
+
+.login-flight-two .login-aircraft {
+  transform: rotate(180deg);
+}
+
+.login-flight-one {
+  top: 42%;
+  left: 0;
+  animation: login-fly-one 19s linear infinite;
+}
+
+.login-flight-two {
+  top: 26%;
+  left: 0;
+  color: #a1dcd5;
+  animation: login-fly-two 26s linear -8s infinite;
+}
+
+.login-flight-three {
+  top: 68%;
+  left: 0;
+  color: #4d9d9d;
+  animation: login-fly-three 23s linear -13s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-orb,
+  .login-flight {
+    animation: none;
+  }
+
+  .login-flight {
+    opacity: 0.22;
   }
 }

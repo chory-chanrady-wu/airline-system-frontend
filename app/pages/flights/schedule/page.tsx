@@ -3,40 +3,111 @@
 import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
+import { displayPrice, type Flight } from "../../../services/airline-system";
 import {
-  browseFlightsByDepartureWindow,
-  displayPrice,
-  loadState,
-  type Flight,
-} from "../../../services/airline-system";
+  fetchAirportsFromApi,
+  fetchFlightScheduleFromApi,
+} from "../../../services/api";
 
 export default function SchedulePage() {
-  const [date, setDate] = useState("2026-10-18");
-  const [from, setFrom] = useState("JFK");
-  const [to, setTo] = useState("LHR");
+  const [date, setDate] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [start, setStart] = useState("00:00");
   const [end, setEnd] = useState("23:59");
   const [flights, setFlights] = useState<Flight[]>([]);
-  const airports = loadState().airports;
-  function search(event?: React.FormEvent) {
+  const [airports, setAirports] = useState<
+    Awaited<ReturnType<typeof fetchAirportsFromApi>>
+  >([]);
+  const [apiNotice, setApiNotice] = useState("");
+
+  async function search(event?: React.FormEvent) {
     event?.preventDefault();
-    setFlights(browseFlightsByDepartureWindow(from, to, date, start, end));
+    try {
+      const backendFlights = await fetchFlightScheduleFromApi(
+        from,
+        to,
+        date,
+        start,
+        end,
+      );
+      if (
+        backendFlights &&
+        Array.isArray(backendFlights) &&
+        backendFlights.length > 0
+      ) {
+        setFlights(
+          backendFlights.map((flight) => ({
+            id: String((flight as Record<string, unknown>).id ?? ""),
+            airline: String((flight as Record<string, unknown>).airline ?? ""),
+            logo: String((flight as Record<string, unknown>).airline ?? "AV")
+              .slice(0, 2)
+              .toUpperCase(),
+            from: String((flight as Record<string, unknown>).from ?? ""),
+            to: String((flight as Record<string, unknown>).to ?? ""),
+            departure: String(
+              (flight as Record<string, unknown>).departure ?? "",
+            ),
+            arrival: String((flight as Record<string, unknown>).arrival ?? ""),
+            departureTime: String(
+              (flight as Record<string, unknown>).departureTime ??
+                new Date().toISOString(),
+            ),
+            arrivalTime: String(
+              (flight as Record<string, unknown>).arrivalTime ??
+                new Date().toISOString(),
+            ),
+            price: Number((flight as Record<string, unknown>).price ?? 0),
+            capacity: Number((flight as Record<string, unknown>).capacity ?? 0),
+            seatsAvailable: Number(
+              (flight as Record<string, unknown>).seatsAvailable ?? 0,
+            ),
+          })),
+        );
+        setApiNotice("Live schedule loaded from backend.");
+        return;
+      }
+    } catch {
+      setApiNotice("Backend unavailable — showing local schedule data.");
+    }
+    setFlights([]);
   }
+
   useEffect(() => {
-    const timer = window.setTimeout(
-      () =>
-        setFlights(browseFlightsByDepartureWindow(from, to, date, start, end)),
-      0,
-    );
+    const loadAirports = async () => {
+      try {
+        const backendAirports = await fetchAirportsFromApi();
+        if (backendAirports.length > 0) {
+          setAirports(
+            backendAirports.map((airport) => ({
+              code: String(airport.code ?? ""),
+              city: String(airport.city ?? ""),
+              latitude: airport.latitude,
+              longitude: airport.longitude,
+            })),
+          );
+          return;
+        }
+      } catch {
+        setApiNotice("Backend unavailable — showing local schedule data.");
+      }
+      setAirports([]);
+    };
+    const timer = window.setTimeout(() => {
+      void loadAirports();
+      void search();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [date, end, from, start, to]);
   return (
     <AirlineSystem initialModule="Flight Management">
       <div className="module-page">
-        <PageTitle
-          eyebrow="Flight Management / Schedule"
-          title="Schedule"
-        />
+        <PageTitle eyebrow="Flight Management / Schedule" title="Schedule" />
+        {apiNotice && (
+          <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
+            {apiNotice}
+          </div>
+        )}
         <form
           onSubmit={search}
           className="rounded-xl border border-[#dce5e8] bg-white p-5"

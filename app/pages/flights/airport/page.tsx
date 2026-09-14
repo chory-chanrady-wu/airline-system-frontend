@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
+import { loadState, type Airport } from "../../../services/airline-system";
 import {
-  addAirport,
-  loadState,
-  removeAirport,
-  updateAirport,
-  type Airport,
-} from "../../../services/airline-system";
+  createAirportWithApi,
+  deleteAirportWithApi,
+  fetchAirportsFromApi,
+  updateAirportWithApi,
+} from "../../../services/api";
 
 type AirportForm = {
   code: string;
@@ -28,15 +28,35 @@ export default function AirportPage() {
   });
   const [editing, setEditing] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [apiNotice, setApiNotice] = useState("");
 
-  function refresh() {
-    setAirports(loadState().airports);
+  async function refresh() {
+    try {
+      const backendAirports = await fetchAirportsFromApi();
+      if (backendAirports.length > 0) {
+        setAirports(
+          backendAirports.map((airport) => ({
+            code: String(airport.code ?? ""),
+            city: String(airport.city ?? ""),
+            latitude: airport.latitude,
+            longitude: airport.longitude,
+          })),
+        );
+        setApiNotice("Live airport data loaded from backend.");
+        return;
+      }
+    } catch {
+      setApiNotice("Backend unavailable — airport data cannot be loaded.");
+    }
+    setAirports([]);
   }
   useEffect(() => {
-    const timer = window.setTimeout(refresh, 0);
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       const airport = {
@@ -44,16 +64,32 @@ export default function AirportPage() {
         latitude: Number(form.latitude),
         longitude: Number(form.longitude),
       };
-      if (editing) updateAirport(editing, airport);
-      else addAirport(airport);
+      if (editing) {
+        await updateAirportWithApi(editing, {
+          code: airport.code,
+          city: airport.city,
+          latitude: airport.latitude,
+          longitude: airport.longitude,
+        });
+      } else {
+        await createAirportWithApi({
+          code: airport.code,
+          city: airport.city,
+          latitude: airport.latitude,
+          longitude: airport.longitude,
+        });
+      }
       setForm({ code: "", city: "", latitude: "", longitude: "" });
       setEditing(null);
-      refresh();
+      await refresh();
       setMessage("Airport saved successfully.");
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Unable to save airport.",
       );
+      setForm({ code: "", city: "", latitude: "", longitude: "" });
+      setEditing(null);
+      await refresh();
     }
   }
 
@@ -64,6 +100,11 @@ export default function AirportPage() {
           eyebrow="Flight Management / Airport"
           title="Airport management"
         />
+        {apiNotice && (
+          <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
+            {apiNotice}
+          </div>
+        )}
         <form
           onSubmit={submit}
           className="rounded-xl border border-[#dce5e8] bg-white p-5"
@@ -171,9 +212,13 @@ export default function AirportPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    removeAirport(airport.code);
-                    refresh();
+                  onClick={async () => {
+                    try {
+                      await deleteAirportWithApi(airport.code);
+                    } catch {
+                      setMessage("Unable to remove airport.");
+                    }
+                    await refresh();
                   }}
                   className="font-semibold text-[#c56d61]"
                 >

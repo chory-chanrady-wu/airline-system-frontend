@@ -4,11 +4,8 @@ import { useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
 
-const roles = [
-  ["Administrator", "Full system access", "3 users"],
-  ["Operations manager", "Flights and reservations", "8 users"],
-  ["Support agent", "Passenger support", "14 users"],
-];
+type RoleRow = [string, string, string];
+const roles: RoleRow[] = [];
 
 export default function RolesPage() {
   const [showForm, setShowForm] = useState(false);
@@ -24,7 +21,7 @@ export default function RolesPage() {
     setShowForm(false);
   }
 
-  function editRole(role: (typeof roles)[number]) {
+  function editRole(role: RoleRow) {
     setForm({ name: role[0], access: role[1], users: role[2] });
     setShowForm(true);
   }

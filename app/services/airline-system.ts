@@ -73,120 +73,8 @@ type Snapshot = {
   history: Booking[];
 };
 
-const STORAGE_KEY = "aerovista-airline-state-v1";
 const SESSION_KEY = "aerovista-session-v1";
-
-const seedAirports: Airport[] = [
-  { code: "JFK", city: "New York", latitude: 40.6413, longitude: -73.7781 },
-  { code: "LHR", city: "London", latitude: 51.47, longitude: -0.4543 },
-  { code: "NRT", city: "Tokyo", latitude: 35.772, longitude: 140.3929 },
-  { code: "CDG", city: "Paris", latitude: 49.0097, longitude: 2.5479 },
-  { code: "SIN", city: "Singapore", latitude: 1.3644, longitude: 103.9915 },
-  { code: "LAX", city: "Los Angeles", latitude: 33.9416, longitude: -118.4085 },
-];
-
-const knownAirportCoordinates: Record<
-  string,
-  Pick<Airport, "latitude" | "longitude">
-> = Object.fromEntries(
-  seedAirports.map((airport) => [
-    airport.code,
-    { latitude: airport.latitude, longitude: airport.longitude },
-  ]),
-);
-
-const seedRoutes: Route[] = [
-  { from: "JFK", to: "LHR", distance: 5540 },
-  { from: "LHR", to: "NRT", distance: 9560 },
-  { from: "JFK", to: "CDG", distance: 5830 },
-  { from: "CDG", to: "LHR", distance: 344 },
-  { from: "LAX", to: "NRT", distance: 8770 },
-  { from: "SIN", to: "LHR", distance: 10880 },
-];
-
-const seedFlights: Flight[] = [
-  {
-    id: "AV-208",
-    airline: "AeroVista",
-    logo: "AV",
-    from: "JFK",
-    to: "LHR",
-    departure: "08:45",
-    arrival: "20:10",
-    departureTime: "2026-10-18T08:45:00",
-    arrivalTime: "2026-10-18T20:10:00",
-    price: 486,
-    capacity: 180,
-    seatsAvailable: 42,
-  },
-  {
-    id: "NS-412",
-    airline: "Northstar Air",
-    logo: "NS",
-    from: "JFK",
-    to: "LHR",
-    departure: "11:20",
-    arrival: "22:55",
-    departureTime: "2026-10-18T11:20:00",
-    arrivalTime: "2026-10-18T22:55:00",
-    price: 512,
-    capacity: 160,
-    seatsAvailable: 0,
-  },
-  {
-    id: "SK-90",
-    airline: "Skyline",
-    logo: "SK",
-    from: "JFK",
-    to: "LHR",
-    departure: "16:05",
-    arrival: "08:30",
-    departureTime: "2026-10-18T16:05:00",
-    arrivalTime: "2026-10-19T08:30:00",
-    price: 429,
-    capacity: 150,
-    seatsAvailable: 7,
-  },
-  {
-    id: "AV-331",
-    airline: "AeroVista",
-    logo: "AV",
-    from: "LAX",
-    to: "NRT",
-    departure: "10:20",
-    arrival: "14:40",
-    departureTime: "2026-10-20T10:20:00",
-    arrivalTime: "2026-10-21T14:40:00",
-    price: 920,
-    capacity: 210,
-    seatsAvailable: 28,
-  },
-];
-
-const seedState: Snapshot = {
-  users: [
-    {
-      id: "usr-admin",
-      name: "Jordan Davis",
-      email: "jordan@aerovista.com",
-      password: "admin123",
-      role: "Admin",
-    },
-    {
-      id: "usr-passenger",
-      name: "Sophia Martinez",
-      email: "sophia@aerovista.com",
-      password: "pass123",
-      role: "Passenger",
-    },
-  ],
-  airports: seedAirports,
-  routes: seedRoutes,
-  flights: seedFlights,
-  bookings: [],
-  history: [],
-};
-
+const SESSION_USER_KEY = "aerovista-session-user-v1";
 export class HashTable<T> {
   private readonly buckets = new Map<string, T>();
   set(key: string, value: T) {
@@ -391,24 +279,15 @@ export class RouteGraph {
   }
 }
 
-function cloneState() {
-  return JSON.parse(JSON.stringify(seedState)) as Snapshot;
-}
 export function loadState(): Snapshot {
-  if (typeof window === "undefined") return cloneState();
-  try {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    const state = saved ? (JSON.parse(saved) as Snapshot) : cloneState();
-    state.airports = state.airports.map((airport) => ({
-      ...airport,
-      ...(airport.latitude === undefined || airport.longitude === undefined
-        ? knownAirportCoordinates[airport.code]
-        : {}),
-    }));
-    return state;
-  } catch {
-    return cloneState();
-  }
+  return {
+    users: [],
+    airports: [],
+    routes: [],
+    flights: [],
+    bookings: [],
+    history: [],
+  };
 }
 
 export function calculateDistance(
@@ -441,17 +320,23 @@ export function calculateDistance(
   );
 }
 export function saveState(state: Snapshot) {
-  if (typeof window !== "undefined")
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  void state;
 }
 export function getSession() {
   if (typeof window === "undefined") return null;
-  const id = window.localStorage.getItem(SESSION_KEY);
-  return loadState().users.find((user) => user.id === id) ?? null;
+  try {
+    return JSON.parse(
+      window.localStorage.getItem(SESSION_USER_KEY) ?? "null",
+    ) as User | null;
+  } catch {
+    return null;
+  }
 }
 export function logout() {
-  if (typeof window !== "undefined")
+  if (typeof window !== "undefined") {
     window.localStorage.removeItem(SESSION_KEY);
+    window.localStorage.removeItem(SESSION_USER_KEY);
+  }
 }
 
 export function register(

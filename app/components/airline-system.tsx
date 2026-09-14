@@ -8,6 +8,7 @@ import Image from "next/image";
 import airplaneIcon from "../assets/icon.png";
 import { Icon } from "./icons";
 import type { Module } from "./airline-data";
+import { getSession } from "../services/airline-system";
 
 type ThemePreference = "light" | "dark" | "system";
 const menu: {
@@ -35,6 +36,14 @@ export function AirlineSystem({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [notice, setNotice] = useState("");
+  const [session] = useState(() => getSession());
+  const sessionName = session?.name || "Authenticated user";
+  const sessionInitials = sessionName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
   const [theme, setTheme] = useState<ThemePreference>(() => {
     if (typeof window === "undefined") return "system";
     const saved = window.localStorage.getItem(
@@ -141,6 +150,12 @@ export function AirlineSystem({
                     >
                       Schedule
                     </Link>
+                    <Link
+                      href="/pages/flights/radar"
+                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/radar" ? "sidebar-subnav-link-active" : ""}`}
+                    >
+                      Flight Radar
+                    </Link>
                   </div>
                 )}
                 {item.label === "Settings" && (
@@ -169,13 +184,15 @@ export function AirlineSystem({
             className="sidebar-profile flex items-center gap-2.5 rounded-lg p-3 transition"
           >
             <span className="grid h-8 w-8 place-items-center rounded-full bg-[#dceee8] text-[11px] font-bold text-[#0e6b69]">
-              JD
+              {sessionInitials || "U"}
             </span>
             <div className="min-w-0">
               <strong className="sidebar-title block truncate text-[11px]">
-                Jordan Davis
+                {sessionName}
               </strong>
-              <span className="sidebar-muted text-[9px]">Administrator</span>
+              <span className="sidebar-muted text-[9px]">
+                {session?.role || "—"}
+              </span>
             </div>
           </Link>
         </div>

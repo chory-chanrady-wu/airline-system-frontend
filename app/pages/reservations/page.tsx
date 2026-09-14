@@ -6,23 +6,13 @@ import { AirlineSystem } from "../../components/airline-system";
 import { Icon } from "../../components/icons";
 import { PageTitle } from "../../components/page-title";
 import { ReservationTable } from "../../components/reservation-table";
-import {
-  cancelBooking,
-  displayPrice,
-  getSession,
-  loadState,
-  undoLastAction,
-} from "../../services/airline-system";
+import { displayPrice, loadState } from "../../services/airline-system";
+import { cancelBookingWithApi, fetchBookingsFromApi } from "../../services/api";
 
 export default function ReservationsPage() {
   const router = useRouter();
   const [rows, setRows] = useState<ReturnType<typeof loadState>["bookings"]>(
-    () => {
-      const session = getSession();
-      return loadState().bookings.filter(
-        (booking) => !session || booking.passengerId === session.id,
-      );
-    },
+    [],
   );
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All statuses");
@@ -30,14 +20,48 @@ export default function ReservationsPage() {
   const [dateTo, setDateTo] = useState("");
   const [showDateRange, setShowDateRange] = useState(false);
   const [message, setMessage] = useState("");
+  const [apiNotice, setApiNotice] = useState("");
 
-  function refresh() {
-    const session = getSession();
-    setRows(
-      loadState().bookings.filter(
-        (booking) => !session || booking.passengerId === session.id,
-      ),
-    );
+  async function refresh() {
+    try {
+      const backendBookings = await fetchBookingsFromApi();
+      if (backendBookings.length > 0) {
+        setRows(
+          backendBookings.map((booking) => ({
+            id: String((booking as Record<string, unknown>).id ?? ""),
+            passengerId: String(
+              (booking as Record<string, unknown>).passengerId ?? "",
+            ),
+            passenger: String(
+              (booking as Record<string, unknown>).passenger ?? "Guest",
+            ),
+            flightId: String(
+              (booking as Record<string, unknown>).flightId ?? "",
+            ),
+            route: String((booking as Record<string, unknown>).route ?? ""),
+            date: String(
+              (booking as Record<string, unknown>).date ??
+                new Date().toISOString().slice(0, 10),
+            ),
+            status:
+              ((booking as Record<string, unknown>).status as
+                | "Confirmed"
+                | "Waitlisted"
+                | "Cancelled") ?? "Confirmed",
+            amount: Number((booking as Record<string, unknown>).amount ?? 0),
+            waitlistPosition:
+              Number(
+                (booking as Record<string, unknown>).waitlistPosition ?? 0,
+              ) || undefined,
+          })),
+        );
+        setApiNotice("Live bookings loaded from backend.");
+        return;
+      }
+    } catch {
+      setApiNotice("Backend unavailable — showing local reservation data.");
+    }
+    setRows([]);
   }
 
   const visibleRows = rows
@@ -55,10 +79,10 @@ export default function ReservationsPage() {
       amount: displayPrice(row.amount),
     }));
 
-  function cancel(id: string) {
+  async function cancel(id: string) {
     try {
-      cancelBooking(id, getSession()?.id);
-      refresh();
+      await cancelBookingWithApi(id);
+      await refresh();
       setMessage(
         "Booking cancelled. The next waitlisted passenger was offered the seat when available.",
       );
@@ -66,15 +90,12 @@ export default function ReservationsPage() {
       setMessage(
         error instanceof Error ? error.message : "Unable to cancel booking.",
       );
+      await refresh();
     }
   }
 
   function undo() {
-    const session = getSession();
-    if (session && undoLastAction(session.id)) {
-      refresh();
-      setMessage("The last booking action was undone.");
-    }
+    setMessage("Undo is available after backend action history is connected.");
   }
 
   return (
@@ -87,8 +108,13 @@ export default function ReservationsPage() {
           onAction={() => router.push("/pages/book-flight")}
         />
         <div className="w-full">
+          {apiNotice && (
+            <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
+              {apiNotice}
+            </div>
+          )}
           <div className="mb-4 flex flex-wrap gap-2">
-            <div className="flex flex-1 items-center gap-2 rounded-lg border border-[#dce5e8] bg-white px-3 py-2 text-[#94a2a6] sm:max-w-[280px]">
+            <div className="flex flex-1 items-center gap-2 rounded-lg border border-[#dce5e8] bg-white px-3 py-2 text-[#94a2a6] sm:max-w-70">
               <Icon name="search" size={16} />
               <input
                 className="w-full border-0 bg-transparent text-[11px] outline-none"

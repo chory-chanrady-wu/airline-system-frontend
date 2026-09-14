@@ -1,19 +1,33 @@
+"use client";
+
+import { useState } from "react";
 import { AirlineSystem } from "../../components/airline-system";
 import { PageTitle } from "../../components/page-title";
+import { getSession } from "../../services/airline-system";
 
 export default function ProfilePage() {
+  const [user] = useState(() => getSession());
+  const name = user?.name || "Authenticated user";
+  const initials = name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
   return (
     <AirlineSystem initialModule="User">
       <div className="module-page">
-        <PageTitle eyebrow="My account" title="Jordan Davis" />
+        <PageTitle eyebrow="My account" title={name} />
         <div className="grid w-full gap-5 lg:grid-cols-[280px_1fr]">
           <section className="rounded-xl border border-[#dce5e8] bg-white p-6">
             <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-[#102f3c] text-2xl font-bold text-white">
-              JD
+              {initials || "U"}
             </div>
             <div className="mt-4 text-center">
-              <h3 className="font-semibold">Jordan Davis</h3>
-              <p className="mt-1 text-[11px] text-[#839198]">Administrator</p>
+              <h3 className="font-semibold">{name}</h3>
+              <p className="mt-1 text-[11px] text-[#839198]">
+                {user?.role || "—"}
+              </p>
               <span className="mt-3 inline-block rounded-full bg-[#e7f5ed] px-2 py-1 text-[9px] font-bold text-[#4d9b73]">
                 Active
               </span>
@@ -26,25 +40,25 @@ export default function ProfilePage() {
                 <p className="text-[10px] font-bold uppercase tracking-[1px] text-[#839198]">
                   Full name
                 </p>
-                <p className="mt-2 text-[12px]">Jordan Davis</p>
+                <p className="mt-2 text-[12px]">{name}</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[1px] text-[#839198]">
                   Email address
                 </p>
-                <p className="mt-2 text-[12px]">jordan@aerovista.com</p>
+                <p className="mt-2 text-[12px]">{user?.email || "—"}</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[1px] text-[#839198]">
                   Role
                 </p>
-                <p className="mt-2 text-[12px]">Administrator</p>
+                <p className="mt-2 text-[12px]">{user?.role || "—"}</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[1px] text-[#839198]">
                   Last login
                 </p>
-                <p className="mt-2 text-[12px]">Today, 08:42</p>
+                <p className="mt-2 text-[12px]">—</p>
               </div>
             </div>
             <div className="mt-6 border-t border-[#eef2f3] pt-5">

@@ -4,48 +4,98 @@ import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
 import {
-  addRoute,
   calculateDistance,
   loadState,
-  removeRoute,
-  updateRoute,
   type Route,
 } from "../../../services/airline-system";
+import {
+  createRouteWithApi,
+  deleteRouteWithApi,
+  fetchAirportsFromApi,
+  fetchRoutesFromApi,
+  updateRouteWithApi,
+} from "../../../services/api";
 
 export default function RoutePage() {
   const [routes, setRoutes] = useState<Route[]>([]);
-  const [airports, setAirports] = useState(loadState().airports);
+  const [airports, setAirports] = useState<
+    ReturnType<typeof loadState>["airports"]
+  >([]);
   const [form, setForm] = useState<Route>({
-    from: "JFK",
-    to: "LHR",
-    distance: 500,
+    from: "",
+    to: "",
+    distance: 0,
   });
   const [editing, setEditing] = useState<Route | null>(null);
   const [message, setMessage] = useState("");
+  const [apiNotice, setApiNotice] = useState("");
   const calculatedDistance = calculateDistance(form.from, form.to, airports);
 
-  function refresh() {
-    const state = loadState();
-    setRoutes(state.routes);
-    setAirports(state.airports);
+  async function refresh() {
+    try {
+      const [backendRoutes, backendAirports] = await Promise.all([
+        fetchRoutesFromApi(),
+        fetchAirportsFromApi(),
+      ]);
+      if (backendRoutes.length > 0 || backendAirports.length > 0) {
+        setRoutes(
+          backendRoutes.map((route) => ({
+            from: String((route as Record<string, unknown>).from ?? ""),
+            to: String((route as Record<string, unknown>).to ?? ""),
+            distance: Number((route as Record<string, unknown>).distance ?? 0),
+          })),
+        );
+        setAirports(
+          backendAirports.map((airport) => ({
+            code: String(airport.code ?? ""),
+            city: String(airport.city ?? ""),
+            latitude: airport.latitude,
+            longitude: airport.longitude,
+          })),
+        );
+        setApiNotice("Live routes and airports loaded from backend.");
+        return;
+      }
+    } catch {
+      setApiNotice("Backend unavailable — route data cannot be loaded.");
+    }
+    setRoutes([]);
+    setAirports([]);
   }
   useEffect(() => {
-    const timer = window.setTimeout(refresh, 0);
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
-      if (editing) updateRoute(editing.from, editing.to, form);
-      else addRoute(form);
+      if (editing) {
+        await updateRouteWithApi(editing.from, editing.to, {
+          from: form.from,
+          to: form.to,
+          distance: form.distance,
+        });
+        setMessage("Route updated successfully.");
+      } else {
+        await createRouteWithApi({
+          from: form.from,
+          to: form.to,
+          distance: form.distance,
+        });
+        setMessage("Route saved successfully.");
+      }
       setEditing(null);
-      setForm({ from: "JFK", to: "LHR", distance: 500 });
-      refresh();
-      setMessage("Route saved successfully.");
+      setForm({ from: "", to: "", distance: 0 });
+      await refresh();
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Unable to save route.",
       );
+      setEditing(null);
+      setForm({ from: "", to: "", distance: 0 });
+      await refresh();
     }
   }
 
@@ -56,6 +106,11 @@ export default function RoutePage() {
           eyebrow="Flight Management / Route"
           title="Route management"
         />
+        {apiNotice && (
+          <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
+            {apiNotice}
+          </div>
+        )}
         <form
           onSubmit={submit}
           className="rounded-xl border border-[#dce5e8] bg-white p-5"
@@ -152,9 +207,13 @@ export default function RoutePage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    removeRoute(route.from, route.to);
-                    refresh();
+                  onClick={async () => {
+                    try {
+                      await deleteRouteWithApi(route.from, route.to);
+                    } catch {
+                      setMessage("Unable to remove route.");
+                    }
+                    await refresh();
                   }}
                   className="font-semibold text-[#c56d61]"
                 >

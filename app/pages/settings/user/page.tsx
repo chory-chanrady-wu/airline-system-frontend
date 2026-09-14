@@ -4,34 +4,12 @@ import { useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
 
-const users = [
-  ["Jordan Davis", "jordan@aerovista.com", "Administrator", "Active", "Today"],
-  [
-    "Sophia Martinez",
-    "sophia@aerovista.com",
-    "Operations manager",
-    "Active",
-    "Today",
-  ],
-  [
-    "Daniel Kim",
-    "daniel@aerovista.com",
-    "Support agent",
-    "Active",
-    "Yesterday",
-  ],
-  [
-    "Amelia Brown",
-    "amelia@aerovista.com",
-    "Support agent",
-    "Inactive",
-    "12 Sep 2026",
-  ],
-];
+type UserRow = [string, string, string, string, string];
+const users: UserRow[] = [];
 
 export default function UserSettingsPage() {
   const [showForm, setShowForm] = useState(false);
-  const [userRows, setUserRows] = useState(users);
+  const [userRows, setUserRows] = useState<UserRow[]>(users);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
@@ -51,7 +29,7 @@ export default function UserSettingsPage() {
     setShowForm(false);
   }
 
-  function editUser(user: (typeof users)[number]) {
+  function editUser(user: UserRow) {
     setForm({ name: user[0], email: user[1], role: user[2], status: user[3] });
     setShowForm(true);
   }
@@ -125,7 +103,7 @@ export default function UserSettingsPage() {
                     setForm({ ...form, email: event.target.value })
                   }
                   className="mt-2 w-full rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px] font-normal outline-none"
-                  placeholder="name@aerovista.com"
+                  placeholder="name@example.com"
                 />
               </label>
               <label className="text-[11px] font-semibold">
