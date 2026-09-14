@@ -18,7 +18,6 @@ export default function FlightListPage() {
   const [query, setQuery] = useState("");
   const [lookup, setLookup] = useState("");
   const [found, setFound] = useState<Flight | undefined>();
-  const [apiNotice, setApiNotice] = useState("");
 
   async function refresh() {
     try {
@@ -40,12 +39,9 @@ export default function FlightListPage() {
             seatsAvailable: Number(flight.seatsAvailable ?? 0),
           })),
         );
-        setApiNotice("Live flight list loaded from backend.");
         return;
       }
-    } catch {
-      setApiNotice("Backend unavailable — flight data cannot be loaded.");
-    }
+    } catch {}
     setFlights([]);
   }
   useEffect(() => {
@@ -66,11 +62,6 @@ export default function FlightListPage() {
           eyebrow="Flight Management / Flight List"
           title="Flight list"
         />
-        {apiNotice && (
-          <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
-            {apiNotice}
-          </div>
-        )}
         <div className="grid gap-4 lg:grid-cols-[1fr_1.5fr]">
           <form
             onSubmit={(event) => {
@@ -138,9 +129,7 @@ export default function FlightListPage() {
                 onClick={async () => {
                   try {
                     await deleteFlightWithApi(flight.id);
-                  } catch {
-                    setApiNotice("Unable to remove flight from backend.");
-                  }
+                  } catch {}
                   await refresh();
                 }}
                 className="font-semibold text-[#c56d61]"

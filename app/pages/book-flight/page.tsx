@@ -29,7 +29,6 @@ export default function BookFlightPage() {
   const [airports, setAirports] = useState<
     Awaited<ReturnType<typeof fetchAirportsFromApi>>
   >([]);
-  const [apiNotice, setApiNotice] = useState("");
   const [routeFrom, setRouteFrom] = useState("");
   const [routeTo, setRouteTo] = useState("");
   const [itineraries, setItineraries] = useState<ReturnType<
@@ -50,9 +49,7 @@ export default function BookFlightPage() {
             })),
           );
         }
-      } catch {
-        setApiNotice("Backend unavailable — airport data cannot be loaded.");
-      }
+      } catch {}
     })();
   });
 
@@ -98,12 +95,9 @@ export default function BookFlightPage() {
             ),
           })),
         );
-        setApiNotice("Live flight search results loaded from backend.");
         return;
       }
-    } catch {
-      setApiNotice("Backend unavailable — flight search is unavailable.");
-    }
+    } catch {}
     setAvailableFlights([]);
   }
 
@@ -184,11 +178,6 @@ export default function BookFlightPage() {
       <div className="module-page">
         <PageTitle eyebrow="Reservation workspace" title="Book a new flight" />
         <div className="w-full">
-          {apiNotice && (
-            <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
-              {apiNotice}
-            </div>
-          )}
           <FlightSearch overlap={false} onSearch={handleSearch} />
           <div className="mt-8">
             <div className="mb-4">

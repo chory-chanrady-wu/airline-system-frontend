@@ -28,7 +28,6 @@ export default function RoutePage() {
   });
   const [editing, setEditing] = useState<Route | null>(null);
   const [message, setMessage] = useState("");
-  const [apiNotice, setApiNotice] = useState("");
   const calculatedDistance = calculateDistance(form.from, form.to, airports);
 
   async function refresh() {
@@ -53,12 +52,9 @@ export default function RoutePage() {
             longitude: airport.longitude,
           })),
         );
-        setApiNotice("Live routes and airports loaded from backend.");
         return;
       }
-    } catch {
-      setApiNotice("Backend unavailable — route data cannot be loaded.");
-    }
+    } catch {}
     setRoutes([]);
     setAirports([]);
   }
@@ -106,11 +102,6 @@ export default function RoutePage() {
           eyebrow="Flight Management / Route"
           title="Route management"
         />
-        {apiNotice && (
-          <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
-            {apiNotice}
-          </div>
-        )}
         <form
           onSubmit={submit}
           className="rounded-xl border border-[#dce5e8] bg-white p-5"

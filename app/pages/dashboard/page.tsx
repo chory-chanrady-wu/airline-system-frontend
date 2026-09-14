@@ -17,7 +17,6 @@ import { fetchDashboardStatsFromApi } from "../../services/api";
 export default function DashboardPage() {
   const router = useRouter();
   const [stats, setStats] = useState(() => systemStats());
-  const [apiNotice, setApiNotice] = useState("");
   const benchmarks = benchmarkStructures();
   const maxBookingActivity = Math.max(
     1,
@@ -40,9 +39,7 @@ export default function DashboardPage() {
             }
           }
         }
-      } catch {
-        setApiNotice("Backend unavailable — showing local dashboard data.");
-      }
+      } catch {}
     }, 0);
     return () => window.clearTimeout(handle);
   }, []);
@@ -59,11 +56,6 @@ export default function DashboardPage() {
           action="Create booking"
           onAction={() => navigate("Book flight")}
         />
-        {apiNotice && (
-          <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
-            {apiNotice}
-          </div>
-        )}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[
             ["Total bookings", String(stats.bookings), "persisted", "ticket"],

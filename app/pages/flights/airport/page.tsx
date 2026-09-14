@@ -28,7 +28,6 @@ export default function AirportPage() {
   });
   const [editing, setEditing] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-  const [apiNotice, setApiNotice] = useState("");
 
   async function refresh() {
     try {
@@ -42,12 +41,9 @@ export default function AirportPage() {
             longitude: airport.longitude,
           })),
         );
-        setApiNotice("Live airport data loaded from backend.");
         return;
       }
-    } catch {
-      setApiNotice("Backend unavailable — airport data cannot be loaded.");
-    }
+    } catch {}
     setAirports([]);
   }
   useEffect(() => {
@@ -100,11 +96,6 @@ export default function AirportPage() {
           eyebrow="Flight Management / Airport"
           title="Airport management"
         />
-        {apiNotice && (
-          <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
-            {apiNotice}
-          </div>
-        )}
         <form
           onSubmit={submit}
           className="rounded-xl border border-[#dce5e8] bg-white p-5"

@@ -19,7 +19,6 @@ export default function SchedulePage() {
   const [airports, setAirports] = useState<
     Awaited<ReturnType<typeof fetchAirportsFromApi>>
   >([]);
-  const [apiNotice, setApiNotice] = useState("");
 
   async function search(event?: React.FormEvent) {
     event?.preventDefault();
@@ -64,12 +63,9 @@ export default function SchedulePage() {
             ),
           })),
         );
-        setApiNotice("Live schedule loaded from backend.");
         return;
       }
-    } catch {
-      setApiNotice("Backend unavailable — showing local schedule data.");
-    }
+    } catch {}
     setFlights([]);
   }
 
@@ -88,9 +84,7 @@ export default function SchedulePage() {
           );
           return;
         }
-      } catch {
-        setApiNotice("Backend unavailable — showing local schedule data.");
-      }
+      } catch {}
       setAirports([]);
     };
     const timer = window.setTimeout(() => {
@@ -103,11 +97,6 @@ export default function SchedulePage() {
     <AirlineSystem initialModule="Flight Management">
       <div className="module-page">
         <PageTitle eyebrow="Flight Management / Schedule" title="Schedule" />
-        {apiNotice && (
-          <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
-            {apiNotice}
-          </div>
-        )}
         <form
           onSubmit={search}
           className="rounded-xl border border-[#dce5e8] bg-white p-5"

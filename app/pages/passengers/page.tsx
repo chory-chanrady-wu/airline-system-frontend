@@ -17,7 +17,6 @@ export default function PassengersPage() {
   const [showForm, setShowForm] = useState(false);
   const [message, setMessage] = useState("");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [apiNotice, setApiNotice] = useState("");
 
   async function refresh() {
     try {
@@ -39,12 +38,9 @@ export default function PassengersPage() {
                 | "Admin") ?? "Passenger",
           })),
         );
-        setApiNotice("Live passenger directory loaded from backend.");
         return;
       }
-    } catch {
-      setApiNotice("Backend unavailable — passenger data cannot be loaded.");
-    }
+    } catch {}
     setPassengers([]); // Clear passengers to prevent reading local demo records
   }
   useEffect(() => {
@@ -112,11 +108,6 @@ export default function PassengersPage() {
           action={showForm ? "Close form" : "Add passenger"}
           onAction={() => setShowForm((open) => !open)}
         />
-        {apiNotice && (
-          <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
-            {apiNotice}
-          </div>
-        )}
         <section
           className="grid gap-4 sm:grid-cols-3"
           aria-label="Passenger analytics"

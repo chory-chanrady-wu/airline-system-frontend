@@ -20,7 +20,6 @@ export default function ReservationsPage() {
   const [dateTo, setDateTo] = useState("");
   const [showDateRange, setShowDateRange] = useState(false);
   const [message, setMessage] = useState("");
-  const [apiNotice, setApiNotice] = useState("");
 
   async function refresh() {
     try {
@@ -55,12 +54,9 @@ export default function ReservationsPage() {
               ) || undefined,
           })),
         );
-        setApiNotice("Live bookings loaded from backend.");
         return;
       }
-    } catch {
-      setApiNotice("Backend unavailable — showing local reservation data.");
-    }
+    } catch {}
     setRows([]);
   }
 
@@ -108,11 +104,6 @@ export default function ReservationsPage() {
           onAction={() => router.push("/pages/book-flight")}
         />
         <div className="w-full">
-          {apiNotice && (
-            <div className="mb-4 rounded-lg border border-[#dfeae8] bg-[#edf7f5] px-4 py-3 text-[11px] text-[#0e6b69]">
-              {apiNotice}
-            </div>
-          )}
           <div className="mb-4 flex flex-wrap gap-2">
             <div className="flex flex-1 items-center gap-2 rounded-lg border border-[#dce5e8] bg-white px-3 py-2 text-[#94a2a6] sm:max-w-70">
               <Icon name="search" size={16} />
