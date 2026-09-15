@@ -7,7 +7,13 @@ import { Icon } from "../../components/icons";
 import { PageTitle } from "../../components/page-title";
 import { ReservationTable } from "../../components/reservation-table";
 import { displayPrice, loadState } from "../../services/airline-system";
-import { cancelBookingWithApi, fetchBookingsFromApi } from "../../services/api";
+import {
+  cancelBookingWithApi,
+  deleteBookingWithApi,
+  fetchBookingsFromApi,
+  updateBookingWithApi,
+  undoBookingCancellationWithApi,
+} from "../../services/api";
 
 export default function ReservationsPage() {
   const router = useRouter();
@@ -96,8 +102,40 @@ export default function ReservationsPage() {
     }
   }
 
-  function undo() {
-    setMessage("Undo is available after backend action history is connected.");
+  async function undo(id: string) {
+    try {
+      await undoBookingCancellationWithApi(id);
+      await refresh();
+      setMessage("Booking cancellation undone.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to undo cancellation.",
+      );
+    }
+  }
+
+  async function remove(id: string) {
+    try {
+      await deleteBookingWithApi(id);
+      await refresh();
+      setMessage("Booking deleted.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to delete booking.",
+      );
+    }
+  }
+
+  async function updateStatus(id: string, nextStatus: string) {
+    try {
+      await updateBookingWithApi(id, { status: nextStatus });
+      await refresh();
+      setMessage("Booking updated.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to update booking.",
+      );
+    }
   }
 
   return (
@@ -175,13 +213,23 @@ export default function ReservationsPage() {
             <span>{message}</span>
             <button
               type="button"
-              onClick={undo}
+              onClick={() =>
+                setMessage(
+                  "Select a cancelled booking to undo its cancellation.",
+                )
+              }
               className="font-bold text-[#0e6b69]"
             >
               Undo last action
             </button>
           </div>
-          <ReservationTable rows={visibleRows} onCancel={cancel} />
+          <ReservationTable
+            rows={visibleRows}
+            onCancel={cancel}
+            onDelete={remove}
+            onUndo={undo}
+            onUpdate={updateStatus}
+          />
         </div>
       </div>
     </AirlineSystem>

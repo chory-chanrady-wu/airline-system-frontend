@@ -34,9 +34,9 @@ export function AirlineSystem({
   const [activeModule] = useState<Module>(initialModule);
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [notice, setNotice] = useState("");
-  const [session] = useState(() => getSession());
+  const [session, setSession] = useState<ReturnType<typeof getSession>>(null);
   const sessionName = session?.name || "Authenticated user";
   const sessionInitials = sessionName
     .split(" ")
@@ -44,17 +44,24 @@ export function AirlineSystem({
     .join("")
     .slice(0, 2)
     .toUpperCase();
-  const [theme, setTheme] = useState<ThemePreference>(() => {
-    if (typeof window === "undefined") return "system";
+  const [theme, setTheme] = useState<ThemePreference>("system");
+
+  useEffect(() => {
     const saved = window.localStorage.getItem(
       "aerovista-theme",
     ) as ThemePreference | null;
-    return saved === "light" || saved === "dark" || saved === "system"
-      ? saved
-      : "system";
-  });
+    const initialTheme =
+      saved === "light" || saved === "dark" || saved === "system"
+        ? saved
+        : "system";
+    const initialSession = getSession();
 
-  useEffect(() => {
+    void Promise.resolve().then(() => {
+      setTheme(initialTheme);
+      setSession(initialSession);
+      setCurrentTime(new Date());
+    });
+
     const clock = window.setInterval(() => setCurrentTime(new Date()), 1000);
     return () => window.clearInterval(clock);
   }, []);
@@ -210,19 +217,21 @@ export function AirlineSystem({
             </button>
             <div>
               <time
-                dateTime={currentTime.toISOString()}
+                dateTime={currentTime?.toISOString() ?? ""}
                 suppressHydrationWarning
                 className="block text-[10px] text-[#839198]"
               >
-                {new Intl.DateTimeFormat("en-US", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  second: "2-digit",
-                }).format(currentTime)}
+                {currentTime
+                  ? new Intl.DateTimeFormat("en-US", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    }).format(currentTime)
+                  : "—"}
               </time>
               <h1 className="mt-1 text-[20px] font-semibold tracking-[-.5px]">
                 {activeModule}

@@ -16,9 +16,15 @@ type Reservation = {
 export function ReservationTable({
   rows,
   onCancel,
+  onDelete,
+  onUndo,
+  onUpdate,
 }: {
   rows: Reservation[];
   onCancel?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onUndo?: (id: string) => void;
+  onUpdate?: (id: string, status: string) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -30,7 +36,7 @@ export function ReservationTable({
         </p>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[680px] border-collapse text-left">
+        <table className="w-full min-w-170 border-collapse text-left">
           <thead className="bg-[#f7fafb] text-[10px] uppercase tracking-[1px] text-[#839198]">
             <tr>
               <th className="px-5 py-3 font-bold">Booking ID</th>
@@ -39,7 +45,7 @@ export function ReservationTable({
               <th className="px-5 py-3 font-bold">Travel date</th>
               <th className="px-5 py-3 font-bold">Status</th>
               <th className="px-5 py-3 text-right font-bold">Amount</th>
-              {onCancel && (
+              {(onCancel || onDelete || onUndo || onUpdate) && (
                 <th className="px-5 py-3 text-right font-bold">Actions</th>
               )}
             </tr>
@@ -63,9 +69,23 @@ export function ReservationTable({
                   </span>
                 </td>
                 <td className="px-5 py-4 text-right font-bold">{row.amount}</td>
-                {onCancel && (
+                {(onCancel || onDelete || onUndo || onUpdate) && (
                   <td className="px-5 py-4 text-right">
-                    {row.status !== "Cancelled" && (
+                    {onUpdate && (
+                      <select
+                        value={row.status}
+                        onChange={(event) => {
+                          event.stopPropagation();
+                          onUpdate(row.id, event.target.value);
+                        }}
+                        className="mr-3 rounded border border-[#dce5e8] bg-white px-1 py-1 text-[9px]"
+                      >
+                        <option>Confirmed</option>
+                        <option>Waitlisted</option>
+                        <option>Cancelled</option>
+                      </select>
+                    )}
+                    {row.status !== "Cancelled" && onCancel && (
                       <button
                         type="button"
                         className="font-semibold text-[#c56d61] hover:underline"
@@ -75,6 +95,30 @@ export function ReservationTable({
                         }}
                       >
                         Cancel
+                      </button>
+                    )}
+                    {row.status === "Cancelled" && onUndo && (
+                      <button
+                        type="button"
+                        className="mr-3 font-semibold text-[#0e6b69] hover:underline"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onUndo(row.id);
+                        }}
+                      >
+                        Undo
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        type="button"
+                        className="font-semibold text-[#c56d61] hover:underline"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDelete(row.id);
+                        }}
+                      >
+                        Delete
                       </button>
                     )}
                   </td>

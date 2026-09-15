@@ -20,12 +20,17 @@ export default function AuthPage() {
 
     try {
       const apiUser = await loginWithApi(form.email, form.password);
+      const role =
+        (apiUser.roleName ?? apiUser.role ?? "passenger").toLowerCase() ===
+        "admin"
+          ? "Admin"
+          : "Passenger";
       const user = {
         id: String(apiUser.id ?? ""),
         name: apiUser.name ?? "",
         email: apiUser.email ?? form.email,
         password: form.password,
-        role: (apiUser.role ?? "Passenger") as "Passenger" | "Admin",
+        role: role as "Passenger" | "Admin",
       };
 
       if (typeof window !== "undefined") {

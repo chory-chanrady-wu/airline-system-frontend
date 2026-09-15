@@ -3,13 +3,22 @@
 import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
-import { fetchUsersFromApi, type ApiUser } from "../../../services/api";
+import {
+  createUserWithApi,
+  deleteUserWithApi,
+  fetchRolesFromApi,
+  fetchUsersFromApi,
+  updateUserWithApi,
+  type ApiRole,
+  type ApiUser,
+} from "../../../services/api";
 
 type UserRow = {
   id: string;
   name: string;
   email: string;
   role: string;
+  roleId: string;
   status: string;
   lastLogin: string;
 };
@@ -17,27 +26,40 @@ type UserRow = {
 export default function UserSettingsPage() {
   const [showForm, setShowForm] = useState(false);
   const [userRows, setUserRows] = useState<UserRow[]>([]);
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<UserRow | null>(null);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [roles, setRoles] = useState<ApiRole[]>([]);
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [form, setForm] = useState({
     name: "",
     email: "",
-    role: "Support agent",
+    password: "",
+    roleId: "",
     status: "Active",
   });
+  const activeUsers = userRows.filter(
+    (user) => user.status.toLowerCase() === "active",
+  ).length;
+  const inactiveUsers = userRows.length - activeUsers;
+  const administratorUsers = userRows.filter((user) =>
+    user.role.toLowerCase().includes("admin"),
+  ).length;
 
   useEffect(() => {
     let active = true;
-    void fetchUsersFromApi()
-      .then((users) => {
+    void Promise.all([fetchUsersFromApi(), fetchRolesFromApi()])
+      .then(([users, availableRoles]) => {
         if (!active) return;
+        setRoles(availableRoles);
         setUserRows(
           users.map((user: ApiUser) => ({
             id: String(user.id ?? user.email ?? ""),
             name: String(user.name ?? ""),
             email: String(user.email ?? ""),
             role: String(user.roleName ?? user.role ?? ""),
+            roleId: String(user.roleId ?? ""),
             status: String(user.status ?? ""),
             lastLogin: user.updatedAt
               ? new Date(user.updatedAt).toLocaleDateString()
@@ -60,38 +82,87 @@ export default function UserSettingsPage() {
     };
   }, []);
 
-  function createUser(event: React.FormEvent<HTMLFormElement>) {
+  async function saveUser(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!form.name.trim() || !form.email.trim()) return;
-    setUserRows([
-      ...userRows,
-      {
-        id: `local-${Date.now()}`,
-        name: form.name,
-        email: form.email,
-        role: form.role,
+    if (
+      !form.name.trim() ||
+      !form.email.trim() ||
+      (!editingUser && !form.password.trim())
+    )
+      return;
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        roleId: form.roleId,
         status: form.status,
-        lastLogin: "—",
-      },
-    ]);
-    setForm({ name: "", email: "", role: "Support agent", status: "Active" });
-    setShowForm(false);
+        ...(form.password ? { password: form.password } : {}),
+      };
+      if (editingUser) await updateUserWithApi(editingUser.id, payload);
+      else await createUserWithApi(payload);
+      const users = await fetchUsersFromApi();
+      setUserRows(
+        users.map((user) => ({
+          id: String(user.id ?? user.email ?? ""),
+          name: String(user.name ?? ""),
+          email: String(user.email ?? ""),
+          role: String(user.roleName ?? user.role ?? ""),
+          roleId: String(user.roleId ?? ""),
+          status: String(user.status ?? ""),
+          lastLogin: user.updatedAt
+            ? new Date(user.updatedAt).toLocaleDateString()
+            : "—",
+        })),
+      );
+      setForm({
+        name: "",
+        email: "",
+        password: "",
+        roleId: roles[0] ? String(roles[0].id) : "",
+        status: "Active",
+      });
+      setEditingUser(null);
+      setShowForm(false);
+    } catch (requestError: unknown) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to save user.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   function editUser(user: UserRow) {
     setForm({
       name: user.name,
       email: user.email,
-      role: user.role,
+      password: "",
+      roleId: user.roleId,
       status: user.status,
     });
+    setEditingUser(user);
     setShowForm(true);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (pendingDelete) {
-      setUserRows(userRows.filter((user) => user.email !== pendingDelete));
-      setPendingDelete(null);
+      setSaving(true);
+      try {
+        await deleteUserWithApi(pendingDelete.id);
+        setUserRows(userRows.filter((user) => user.id !== pendingDelete.id));
+        setPendingDelete(null);
+      } catch (requestError: unknown) {
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Unable to delete user.",
+        );
+      } finally {
+        setSaving(false);
+      }
     }
   }
 
@@ -105,27 +176,59 @@ export default function UserSettingsPage() {
           onAction={() => setShowForm(!showForm)}
         />
         {pendingDelete && (
-          <div className="fixed left-1/2 top-1/2 z-40 flex min-h-[160px] w-[320px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-5 rounded-xl border border-[#dce5e8] bg-white px-6 py-6 text-[13px] text-[#172b3a] shadow-2xl">
-            <span className="font-semibold">Delete this user?</span>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={confirmDelete}
-                className="rounded bg-[#ed744d] px-3 py-1.5 font-bold"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => setPendingDelete(null)}
-                className="font-semibold text-[#0e6b69]"
-              >
-                Cancel
-              </button>
+          <div className="fixed inset-0 z-40 grid place-items-center bg-[#172b3a]/20 px-5">
+            <div className="w-full max-w-90 rounded-xl border border-[#dce5e8] bg-white p-6 text-[#172b3a] shadow-2xl">
+              <p className="text-[15px] font-semibold">
+                Delete {pendingDelete.name}?
+              </p>
+              <p className="mt-2 text-[11px] leading-5 text-[#71838a]">
+                This will permanently remove the user account.
+              </p>
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => setPendingDelete(null)}
+                  className="rounded-lg border border-[#dce5e8] px-4 py-2 text-[11px] font-bold text-[#526a73]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={confirmDelete}
+                  className="rounded-lg bg-[#c56d61] px-4 py-2 text-[11px] font-bold text-white disabled:opacity-60"
+                >
+                  {saving ? "Deleting..." : "Delete user"}
+                </button>
+              </div>
             </div>
           </div>
         )}
+        <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ["Total users", userRows.length, "Registered accounts"],
+            ["Active users", activeUsers, "Currently enabled"],
+            ["Inactive users", inactiveUsers, "Access disabled"],
+            ["Administrators", administratorUsers, "Users with admin access"],
+          ].map(([label, value, caption]) => (
+            <div
+              key={label}
+              className="rounded-xl border border-[#dce5e8] bg-white p-4"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-[1.3px] text-[#839198]">
+                {label}
+              </p>
+              <strong className="mt-2 block text-[25px] tracking-[-1px] text-[#172b3a]">
+                {value}
+              </strong>
+              <span className="text-[10px] text-[#839198]">{caption}</span>
+            </div>
+          ))}
+        </div>
         {showForm && (
           <form
-            onSubmit={createUser}
+            onSubmit={saveUser}
             className="mb-5 rounded-xl border border-[#dce5e8] bg-white p-6"
           >
             <div className="mb-5">
@@ -160,18 +263,36 @@ export default function UserSettingsPage() {
                   placeholder="name@example.com"
                 />
               </label>
+              {!editingUser && (
+                <label className="text-[11px] font-semibold">
+                  Password
+                  <input
+                    required
+                    minLength={6}
+                    type="password"
+                    value={form.password}
+                    onChange={(event) =>
+                      setForm({ ...form, password: event.target.value })
+                    }
+                    className="mt-2 w-full rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px] font-normal outline-none"
+                    placeholder="Temporary password"
+                  />
+                </label>
+              )}
               <label className="text-[11px] font-semibold">
                 Role
                 <select
-                  value={form.role}
+                  value={form.roleId}
                   onChange={(event) =>
-                    setForm({ ...form, role: event.target.value })
+                    setForm({ ...form, roleId: event.target.value })
                   }
                   className="mt-2 w-full rounded-lg border border-[#dce5e8] bg-white px-3 py-2 text-[11px] font-normal outline-none"
                 >
-                  <option>Administrator</option>
-                  <option>Operations manager</option>
-                  <option>Support agent</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="text-[11px] font-semibold">
@@ -193,7 +314,11 @@ export default function UserSettingsPage() {
                 type="submit"
                 className="rounded-lg bg-[#0e6b69] px-4 py-2.5 text-[11px] font-bold text-white"
               >
-                Create user
+                {saving
+                  ? "Saving..."
+                  : editingUser
+                    ? "Save changes"
+                    : "Create user"}
               </button>
               <button
                 type="button"
@@ -205,7 +330,7 @@ export default function UserSettingsPage() {
             </div>
           </form>
         )}
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#dce5e8] bg-white px-3 py-2 text-[#94a2a6] sm:max-w-[300px]">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#dce5e8] bg-white px-3 py-2 text-[#94a2a6] sm:max-w-75">
           <input
             className="w-full border-0 bg-transparent text-[11px] outline-none"
             placeholder="Search users"
@@ -215,7 +340,7 @@ export default function UserSettingsPage() {
         </div>
         {error && <p className="mb-4 text-[11px] text-[#c56d61]">{error}</p>}
         <div className="overflow-hidden rounded-xl border border-[#dce5e8] bg-white">
-          <div className="grid min-w-[900px] grid-cols-[1.2fr_1.4fr_1.2fr_100px_120px_140px] bg-[#f7fafb] px-5 py-3 text-[10px] font-bold uppercase tracking-[1px] text-[#839198]">
+          <div className="grid min-w-225 grid-cols-[1.2fr_1.4fr_1.2fr_100px_120px_140px] bg-[#f7fafb] px-5 py-3 text-[10px] font-bold uppercase tracking-[1px] text-[#839198]">
             <span>User</span>
             <span>Email</span>
             <span>Role</span>
@@ -231,7 +356,7 @@ export default function UserSettingsPage() {
             )
             .map((user) => (
               <div
-                className="grid min-w-[900px] grid-cols-[1.2fr_1.4fr_1.2fr_100px_120px_140px] items-center border-t border-[#eef2f3] px-5 py-4 text-[11px]"
+                className="grid min-w-225 grid-cols-[1.2fr_1.4fr_1.2fr_100px_120px_140px] items-center border-t border-[#eef2f3] px-5 py-4 text-[11px]"
                 key={user.id}
               >
                 <strong>{user.name}</strong>
@@ -253,7 +378,7 @@ export default function UserSettingsPage() {
                     Edit
                   </button>
                   <button
-                    onClick={() => setPendingDelete(user.email)}
+                    onClick={() => setPendingDelete(user)}
                     className="font-semibold text-[#c56d61] hover:underline"
                   >
                     Delete

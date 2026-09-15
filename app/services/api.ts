@@ -9,6 +9,7 @@ export type ApiUser = {
   id?: string | number;
   name?: string;
   email?: string;
+  roleId?: string | number;
   role?: string;
   roleName?: string;
   status?: string;
@@ -29,6 +30,12 @@ export type ApiRole = {
 export type ApiFlight = {
   id?: string | number;
   flightId?: string | number;
+  flightNumber?: string;
+  airlineId?: string | number;
+  aircraftId?: string | number;
+  routeId?: string | number;
+  fromAirportCode?: string;
+  toAirportCode?: string;
   airline?: string;
   from?: string;
   to?: string;
@@ -37,8 +44,72 @@ export type ApiFlight = {
   departure?: string;
   arrival?: string;
   price?: number;
+  seatCapacity?: number;
   seatsAvailable?: number;
   capacity?: number;
+  status?: string;
+};
+
+export type ApiAirport = {
+  code?: string;
+  city?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+  timezone?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ApiRoute = {
+  id?: string | number;
+  from?: string;
+  to?: string;
+  fromAirportCode?: string;
+  toAirportCode?: string;
+  distance?: number;
+  distanceKm?: number;
+  durationMinutes?: number;
+  active?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ApiBooking = {
+  id?: string | number;
+  bookingReference?: string;
+  passengerId?: string | number;
+  passengerName?: string;
+  flightId?: string | number;
+  flightNumber?: string;
+  seatNumber?: string;
+  amount?: number;
+  currency?: string;
+  status?: string;
+  bookedAt?: string;
+  cancelledAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ApiPassenger = {
+  id?: string | number;
+  userId?: string | number;
+  userName?: string;
+  userEmail?: string;
+  passportNumber?: string;
+  nationality?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  emergencyContact?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ApiSession = {
+  authenticated?: boolean;
+  user?: ApiUser;
+  token?: string;
 };
 
 const API_PREFIX = "/api/v1";
@@ -137,9 +208,86 @@ export async function loginWithApi(email: string, password: string) {
   });
 }
 
-export async function fetchUsersFromApi() {
-  const result = await apiProxy<unknown>("/users", { method: "GET" });
+export async function registerWithApi(payload: {
+  name: string;
+  email: string;
+  password: string;
+}) {
+  return apiProxy<ApiSession>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function logoutWithApi() {
+  return apiProxy<{ authenticated?: boolean }>("/auth/logout", {
+    method: "POST",
+  });
+}
+
+export async function fetchSessionFromApi() {
+  return apiProxy<ApiSession>("/auth/session", { method: "GET" });
+}
+
+export async function fetchCurrentUserFromApi() {
+  const result = await apiProxy<{ user?: ApiUser } | ApiUser>("/users/me", {
+    method: "GET",
+  });
+  return "user" in result ? result.user : result;
+}
+
+export async function updateCurrentUserWithApi(
+  payload: Record<string, unknown>,
+) {
+  return apiProxy<{ user?: ApiUser } | ApiUser>("/users/me", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function changePasswordWithApi(
+  currentPassword: string,
+  newPassword: string,
+) {
+  return apiProxy<unknown>("/users/me/password", {
+    method: "PATCH",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+export async function fetchUsersFromApi(search?: string) {
+  const query = search ? `?${new URLSearchParams({ search })}` : "";
+  const result = await apiProxy<unknown>(`/users${query}`, { method: "GET" });
   return unpackArrayResult<ApiUser>(result);
+}
+
+export async function createUserWithApi(payload: Record<string, unknown>) {
+  return apiProxy<unknown>("/users", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchUserByIdFromApi(userId: string | number) {
+  return apiProxy<unknown>(`/users/${encodeURIComponent(userId)}`, {
+    method: "GET",
+  });
+}
+
+export async function updateUserWithApi(
+  userId: string | number,
+  payload: Record<string, unknown>,
+) {
+  return apiProxy<unknown>(`/users/${encodeURIComponent(userId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteUserWithApi(userId: string | number) {
+  return apiProxy<unknown>(`/users/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+  });
 }
 
 export async function fetchRolesFromApi() {
@@ -167,6 +315,12 @@ export async function updateRoleWithApi(
 export async function deleteRoleWithApi(roleId: string | number) {
   return apiProxy<unknown>(`/roles/${encodeURIComponent(roleId)}`, {
     method: "DELETE",
+  });
+}
+
+export async function fetchRoleByIdFromApi(roleId: string | number) {
+  return apiProxy<unknown>(`/roles/${encodeURIComponent(roleId)}`, {
+    method: "GET",
   });
 }
 
@@ -201,14 +355,18 @@ export async function deleteFlightWithApi(flightId: string | number) {
   });
 }
 
-export async function fetchAirportsFromApi() {
-  const result = await apiProxy<unknown>("/airports", { method: "GET" });
-  return unpackArrayResult<{
-    code?: string;
-    city?: string;
-    latitude?: number;
-    longitude?: number;
-  }>(result);
+export async function fetchAirportsFromApi(search?: string) {
+  const query = search ? `?${new URLSearchParams({ search })}` : "";
+  const result = await apiProxy<unknown>(`/airports${query}`, {
+    method: "GET",
+  });
+  return unpackArrayResult<ApiAirport>(result);
+}
+
+export async function fetchAirportByCodeFromApi(code: string) {
+  return apiProxy<unknown>(`/airports/${encodeURIComponent(code)}`, {
+    method: "GET",
+  });
 }
 
 export async function createAirportWithApi(payload: Record<string, unknown>) {
@@ -236,23 +394,19 @@ export async function deleteAirportWithApi(code: string) {
 
 export async function fetchBookingsFromApi() {
   const result = await apiProxy<unknown>("/bookings", { method: "GET" });
-  return unpackArrayResult<unknown>(result);
+  return unpackArrayResult<ApiBooking>(result);
 }
 
-export async function fetchPassengersFromApi() {
-  const result = await apiProxy<unknown>("/passengers", { method: "GET" });
-  return unpackArrayResult<unknown>(result);
+export async function fetchPassengersFromApi(search?: string) {
+  const query = search ? `?${new URLSearchParams({ search })}` : "";
+  const result = await apiProxy<unknown>(`/passengers${query}`, {
+    method: "GET",
+  });
+  return unpackArrayResult<ApiPassenger>(result);
 }
 
 export async function fetchDashboardStatsFromApi() {
   return apiProxy<unknown>("/analytics/dashboard", { method: "GET" });
-}
-
-export async function createBookingWithApi(payload: Record<string, unknown>) {
-  return apiProxy<unknown>("/bookings", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
 }
 
 export async function createPassengerWithApi(payload: Record<string, unknown>) {
@@ -264,14 +418,14 @@ export async function createPassengerWithApi(payload: Record<string, unknown>) {
 
 export async function fetchRoutesFromApi() {
   const result = await apiProxy<unknown>("/routes", { method: "GET" });
-  return unpackArrayResult<{
-    from?: string;
-    to?: string;
-    fromAirportCode?: string;
-    toAirportCode?: string;
-    distance?: number;
-    distanceKm?: number;
-  }>(result);
+  return unpackArrayResult<ApiRoute>(result);
+}
+
+export async function fetchRouteFromApi(from: string, to: string) {
+  return apiProxy<unknown>(
+    `/routes/${encodeURIComponent(from)}/${encodeURIComponent(to)}`,
+    { method: "GET" },
+  );
 }
 
 export async function createRouteWithApi(payload: Record<string, unknown>) {
@@ -304,13 +458,32 @@ export async function deleteRouteWithApi(from: string, to: string) {
   );
 }
 
+export async function fetchRouteDistanceFromApi(from: string, to: string) {
+  return apiProxy<unknown>(
+    `/routes/${encodeURIComponent(from)}/${encodeURIComponent(to)}/distance`,
+    { method: "GET" },
+  );
+}
+
+export async function optimizeRouteFromApi(
+  from: string,
+  to: string,
+  type = "cheapest",
+) {
+  const query = new URLSearchParams({ from, to, type }).toString();
+  return apiProxy<unknown>(`/routes/optimize?${query}`, { method: "GET" });
+}
+
 export async function searchFlightsFromApi(
   from: string,
   to: string,
   date: string,
 ) {
   const query = new URLSearchParams({ from, to, date }).toString();
-  return apiProxy<unknown>(`/flights/search?${query}`, { method: "GET" });
+  const result = await apiProxy<unknown>(`/flights/search?${query}`, {
+    method: "GET",
+  });
+  return unpackArrayResult<ApiFlight>(result);
 }
 
 export async function fetchFlightScheduleFromApi(
@@ -321,7 +494,10 @@ export async function fetchFlightScheduleFromApi(
   end: string,
 ) {
   const query = new URLSearchParams({ from, to, date, start, end }).toString();
-  return apiProxy<unknown>(`/flights/schedule?${query}`, { method: "GET" });
+  const result = await apiProxy<unknown>(`/flights/schedule?${query}`, {
+    method: "GET",
+  });
+  return unpackArrayResult<ApiFlight>(result);
 }
 
 export async function deletePassengerWithApi(passengerId: string | number) {
@@ -330,8 +506,205 @@ export async function deletePassengerWithApi(passengerId: string | number) {
   });
 }
 
+export async function createFlightWithApi(payload: Record<string, unknown>) {
+  return apiProxy<unknown>("/flights", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchFlightByIdFromApi(flightId: string | number) {
+  return apiProxy<unknown>(`/flights/${encodeURIComponent(flightId)}`, {
+    method: "GET",
+  });
+}
+
+export async function updateFlightWithApi(
+  flightId: string | number,
+  payload: Record<string, unknown>,
+) {
+  return apiProxy<unknown>(`/flights/${encodeURIComponent(flightId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchFlightLookupFromApi(flightId: string | number) {
+  return apiProxy<unknown>(`/flights/lookup/${encodeURIComponent(flightId)}`, {
+    method: "GET",
+  });
+}
+
+export async function fetchFlightWaitlistFromApi(flightId: string | number) {
+  const result = await apiProxy<unknown>(
+    `/flights/${encodeURIComponent(flightId)}/waitlist`,
+    { method: "GET" },
+  );
+  return unpackArrayResult<unknown>(result);
+}
+
+export async function addFlightWaitlistEntryWithApi(
+  flightId: string | number,
+  payload: Record<string, unknown>,
+) {
+  return apiProxy<unknown>(
+    `/flights/${encodeURIComponent(flightId)}/waitlist`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function promoteFlightWaitlistWithApi(
+  flightId: string | number,
+  bookingId: string | number,
+) {
+  return apiProxy<unknown>(
+    `/flights/${encodeURIComponent(flightId)}/waitlist/promote`,
+    { method: "POST", body: JSON.stringify({ bookingId }) },
+  );
+}
+
+export async function removeFlightWaitlistEntryWithApi(
+  flightId: string | number,
+  bookingId: string | number,
+) {
+  return apiProxy<unknown>(
+    `/flights/${encodeURIComponent(flightId)}/waitlist/${encodeURIComponent(bookingId)}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function createBookingWithApi(payload: Record<string, unknown>) {
+  return apiProxy<unknown>("/bookings", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchBookingByIdFromApi(bookingId: string | number) {
+  return apiProxy<unknown>(`/bookings/${encodeURIComponent(bookingId)}`, {
+    method: "GET",
+  });
+}
+
+export async function updateBookingWithApi(
+  bookingId: string | number,
+  payload: Record<string, unknown>,
+) {
+  return apiProxy<unknown>(`/bookings/${encodeURIComponent(bookingId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteBookingWithApi(bookingId: string | number) {
+  return apiProxy<unknown>(`/bookings/${encodeURIComponent(bookingId)}`, {
+    method: "DELETE",
+  });
+}
+
 export async function cancelBookingWithApi(bookingId: string | number) {
   return apiProxy<unknown>(`/bookings/${bookingId}/cancel`, {
     method: "POST",
   });
+}
+
+export async function undoBookingCancellationWithApi(
+  bookingId: string | number,
+) {
+  return apiProxy<unknown>(`/bookings/${encodeURIComponent(bookingId)}/undo`, {
+    method: "POST",
+  });
+}
+
+export async function fetchPassengerByIdFromApi(passengerId: string | number) {
+  return apiProxy<unknown>(`/passengers/${encodeURIComponent(passengerId)}`, {
+    method: "GET",
+  });
+}
+
+export async function updatePassengerWithApi(
+  passengerId: string | number,
+  payload: Record<string, unknown>,
+) {
+  return apiProxy<unknown>(`/passengers/${encodeURIComponent(passengerId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchPassengerBookingsFromApi(
+  passengerId: string | number,
+) {
+  const result = await apiProxy<unknown>(
+    `/passengers/${encodeURIComponent(passengerId)}/bookings`,
+    { method: "GET" },
+  );
+  return unpackArrayResult<ApiBooking>(result);
+}
+
+export async function fetchPassengerBookingHistoryFromApi(
+  passengerId: string | number,
+) {
+  const result = await apiProxy<unknown>(
+    `/passengers/${encodeURIComponent(passengerId)}/bookings/history`,
+    { method: "GET" },
+  );
+  return unpackArrayResult<unknown>(result);
+}
+
+export async function fetchRadarFromApi() {
+  const result = await apiProxy<unknown>("/flights/radar", { method: "GET" });
+  return unpackArrayResult<unknown>(result);
+}
+
+export async function fetchRadarStatusFromApi() {
+  return apiProxy<unknown>("/flights/radar/status", { method: "GET" });
+}
+
+export async function fetchFlightRadarFromApi(flightId: string | number) {
+  return apiProxy<unknown>(`/flights/radar/${encodeURIComponent(flightId)}`, {
+    method: "GET",
+  });
+}
+
+export async function fetchHealthFromApi() {
+  return apiProxy<unknown>("/health", { method: "GET" });
+}
+
+export async function fetchDatabaseHealthFromApi() {
+  return apiProxy<unknown>("/health/database", { method: "GET" });
+}
+
+export async function fetchProvidersHealthFromApi() {
+  return apiProxy<unknown>("/health/providers", { method: "GET" });
+}
+
+export async function fetchBookingAnalyticsFromApi() {
+  return apiProxy<unknown>("/analytics/bookings", { method: "GET" });
+}
+
+export async function fetchLoadFactorAnalyticsFromApi() {
+  return apiProxy<unknown>("/analytics/load-factors", { method: "GET" });
+}
+
+export async function fetchRevenueAnalyticsFromApi() {
+  return apiProxy<unknown>("/analytics/revenue", { method: "GET" });
+}
+
+export async function fetchFlightStatusAnalyticsFromApi() {
+  return apiProxy<unknown>("/analytics/flight-status", { method: "GET" });
+}
+
+export async function fetchBenchmarksFromApi() {
+  const result = await apiProxy<unknown>("/analytics/benchmarks", {
+    method: "GET",
+  });
+  return unpackArrayResult<unknown>(result);
+}
+
+export async function runBenchmarksWithApi() {
+  return apiProxy<unknown>("/analytics/benchmarks/run", { method: "POST" });
 }
