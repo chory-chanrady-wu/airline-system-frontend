@@ -47,6 +47,9 @@ async function proxyToBackend(
       method,
       headers: {
         Accept: "application/json",
+        ...(request.headers.get("authorization")
+          ? { Authorization: request.headers.get("authorization") as string }
+          : {}),
         ...(request.headers.get("content-type")
           ? { "Content-Type": request.headers.get("content-type") as string }
           : {}),

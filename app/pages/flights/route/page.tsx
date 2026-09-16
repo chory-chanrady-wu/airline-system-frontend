@@ -16,6 +16,20 @@ import {
   updateRouteWithApi,
 } from "../../../services/api";
 
+function calculateDurationMinutes(distanceKm: number) {
+  // Estimate average flight time at 570 km/h; 900 km produces 95 minutes.
+  return Math.max(1, Math.round((distanceKm / 570) * 60));
+}
+
+function formatDuration(durationMinutes: number) {
+  const totalSeconds = Math.max(0, Math.round(durationMinutes * 60));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+}
+
 export default function RoutePage() {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [airports, setAirports] = useState<
@@ -86,6 +100,11 @@ export default function RoutePage() {
                 backendDistance > 0
                   ? backendDistance
                   : (calculatedRouteDistance ?? 0),
+              durationMinutes: Number(
+                (route as Record<string, unknown>).durationMinutes ??
+                  (route as Record<string, unknown>).duration ??
+                  0,
+              ),
             };
           }),
         );
@@ -105,6 +124,7 @@ export default function RoutePage() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const routeDistance = calculatedDistance ?? form.distance;
+    const durationMinutes = calculateDurationMinutes(routeDistance);
     if (!form.from || !form.to || routeDistance <= 0) {
       setMessage(
         "Select two airports with valid coordinates to detect the distance.",
@@ -117,6 +137,7 @@ export default function RoutePage() {
           fromAirportCode: form.from,
           toAirportCode: form.to,
           distanceKm: routeDistance,
+          durationMinutes,
           active: true,
         });
         setMessage("Route updated successfully.");
@@ -125,6 +146,7 @@ export default function RoutePage() {
           fromAirportCode: form.from,
           toAirportCode: form.to,
           distanceKm: routeDistance,
+          durationMinutes,
           active: true,
         });
         setMessage("Route saved successfully.");
@@ -233,6 +255,16 @@ export default function RoutePage() {
                     : `${calculatedDistance.toLocaleString()} km`}
                 </div>
               </div>
+              <div className="text-[10px] font-bold text-[#839198]">
+                Calculated duration
+                <div className="mt-1 flex h-7.75 items-center rounded-lg border border-[#c5e2dc] bg-[#eef8f5] px-3 text-[11px] font-bold text-[#0e6b69]">
+                  {calculatedDistance === null
+                    ? "Add coordinates to both airports"
+                    : formatDuration(
+                        calculateDurationMinutes(calculatedDistance),
+                      )}
+                </div>
+              </div>
             </div>
             <div className="mt-4 flex gap-2">
               <button className="rounded-lg bg-[#0e6b69] px-4 py-2 text-[11px] font-bold text-white">
@@ -287,20 +319,28 @@ export default function RoutePage() {
           </div>
         )}
         <div className="mt-6 overflow-hidden rounded-xl border border-[#dce5e8] bg-white">
-          <div className="grid grid-cols-[1fr_1fr_1fr_180px] bg-[#f7fafb] px-5 py-3 text-[10px] font-bold uppercase text-[#839198]">
+          <div className="grid grid-cols-[1fr_1fr_1fr_1fr_180px] bg-[#f7fafb] px-5 py-3 text-[10px] font-bold uppercase text-[#839198]">
             <span>Origin</span>
             <span>Destination</span>
             <span>Distance</span>
+            <span>Duration</span>
             <span>Actions</span>
           </div>
           {routes.map((route) => (
             <div
               key={`${route.from}-${route.to}`}
-              className="grid grid-cols-[1fr_1fr_1fr_180px] items-center border-t border-[#eef2f3] px-5 py-4 text-[11px]"
+              className="grid grid-cols-[1fr_1fr_1fr_1fr_180px] items-center border-t border-[#eef2f3] px-5 py-4 text-[11px]"
             >
               <strong>{route.from}</strong>
               <span>{route.to}</span>
               <span>{route.distance.toLocaleString()} km</span>
+              <span>
+                {formatDuration(
+                  route.durationMinutes && route.durationMinutes > 0
+                    ? route.durationMinutes
+                    : calculateDurationMinutes(route.distance),
+                )}
+              </span>
               <span className="flex gap-3">
                 <button
                   type="button"

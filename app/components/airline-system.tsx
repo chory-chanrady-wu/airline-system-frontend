@@ -3,12 +3,16 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import airplaneIcon from "../assets/icon.png";
 import { Icon } from "./icons";
 import type { Module } from "./airline-data";
-import { getSession } from "../services/airline-system";
+import {
+  getSession,
+  logout as clearLocalSession,
+} from "../services/airline-system";
+import { logoutWithApi } from "../services/auth";
 
 type ThemePreference = "light" | "dark" | "system";
 const menu: {
@@ -33,9 +37,11 @@ export function AirlineSystem({
 }) {
   const [activeModule] = useState<Module>(initialModule);
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [notice, setNotice] = useState("");
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [session, setSession] = useState<ReturnType<typeof getSession>>(null);
   const sessionName = session?.name || "Authenticated user";
   const sessionInitials = sessionName
@@ -47,6 +53,8 @@ export function AirlineSystem({
   const [theme, setTheme] = useState<ThemePreference>("system");
 
   useEffect(() => {
+    // Remove the obsolete client-side seed data from older app versions.
+    window.localStorage.removeItem("aerovista-airline-state-v1");
     const saved = window.localStorage.getItem(
       "aerovista-theme",
     ) as ThemePreference | null;
@@ -88,6 +96,18 @@ export function AirlineSystem({
   function showNotice(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 3000);
+  }
+
+  async function handleLogout() {
+    setLogoutDialogOpen(false);
+    try {
+      await logoutWithApi();
+    } catch {
+      // Clear the local session even when the API is unavailable.
+    } finally {
+      clearLocalSession();
+      router.push("/");
+    }
   }
 
   return (
@@ -133,6 +153,12 @@ export function AirlineSystem({
                 </div>
                 {item.label === "Flight Management" && (
                   <div className="sidebar-subnav ml-5 grid border-l pl-3">
+                    <Link
+                      href="/pages/flights/aircraft"
+                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/aircraft" ? "sidebar-subnav-link-active" : ""}`}
+                    >
+                      Aircraft
+                    </Link>
                     <Link
                       href="/pages/flights/airport"
                       className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/airport" ? "sidebar-subnav-link-active" : ""}`}
@@ -186,34 +212,96 @@ export function AirlineSystem({
           </nav>
         </div>
         <div className="sidebar-divider mt-auto border-t p-4">
-          <Link
-            href="/pages/profile"
-            className="sidebar-profile flex items-center gap-2.5 rounded-lg p-3 transition"
-          >
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-[#dceee8] text-[11px] font-bold text-[#0e6b69]">
-              {sessionInitials || "U"}
-            </span>
-            <div className="min-w-0">
-              <strong className="sidebar-title block truncate text-[11px]">
-                {sessionName}
-              </strong>
-              <span className="sidebar-muted text-[9px]">
-                {session?.role || "—"}
+          <div className="sidebar-profile flex items-center gap-2.5 rounded-lg p-3 transition">
+            <Link
+              href="/pages/profile"
+              onClick={() => setSidebarOpen(false)}
+              className="flex min-w-0 flex-1 items-center gap-2.5"
+            >
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#dceee8] text-[11px] font-bold text-[#0e6b69]">
+                {sessionInitials || "U"}
               </span>
-            </div>
-          </Link>
+              <div className="min-w-0">
+                <strong className="sidebar-title block truncate text-[11px]">
+                  {sessionName}
+                </strong>
+                <span className="sidebar-muted text-[9px]">
+                  {session?.role || "—"}
+                </span>
+              </div>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setLogoutDialogOpen(true)}
+              className="sidebar-muted shrink-0 rounded-md p-2 transition hover:bg-white/10 hover:text-[#ed744d]"
+              aria-label="Log out"
+              title="Log out"
+            >
+              <Icon name="logout" size={17} />
+            </button>
+          </div>
         </div>
       </aside>
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          className="fixed inset-0 z-10 bg-[#071f2b]/45 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      {logoutDialogOpen && (
+        <div
+          className="fixed inset-0 z-40 grid place-items-center bg-[#071f2b]/45 px-5"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) {
+              setLogoutDialogOpen(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-dialog-title"
+            className="w-full max-w-sm rounded-xl bg-white p-6 text-[#172b3a] shadow-2xl"
+          >
+            <h2 id="logout-dialog-title" className="text-base font-semibold">
+              Log out of Safty Airline?
+            </h2>
+            <p className="mt-2 text-[12px] leading-5 text-[#71838a]">
+              You will need to sign in again to access your account.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setLogoutDialogOpen(false)}
+                className="rounded-lg border border-[#dce5e8] px-4 py-2 text-[11px] font-bold text-[#526a73] transition hover:bg-[#f4f7f8]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-lg bg-[#c56d61] px-4 py-2 text-[11px] font-bold text-white transition hover:bg-[#b85d51]"
+              >
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="min-w-0 flex-1 lg:ml-[250px]">
         <header className="fixed inset-x-0 top-0 z-10 flex h-[78px] items-center justify-between border-b border-[#dce5e8] bg-white px-5 sm:px-8 lg:left-[250px]">
           <div className="flex items-center gap-3">
             <button
-              className="text-[#0e6b69] lg:hidden"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              aria-label="Toggle navigation"
+              type="button"
+              className="rounded-md p-1 text-[#0e6b69] hover:bg-[#f1f6f5] lg:hidden"
+              onClick={() => setSidebarOpen((open) => !open)}
+              aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
+              aria-expanded={sidebarOpen}
             >
-              <span className="block h-0.5 w-5 bg-current"></span>
-              <span className="mt-1 block h-0.5 w-5 bg-current"></span>
+              <Icon name={sidebarOpen ? "close" : "menu"} size={20} />
             </button>
             <div>
               <time

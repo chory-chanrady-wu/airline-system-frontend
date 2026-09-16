@@ -20,24 +20,33 @@ export default function AuthPage() {
 
     try {
       const apiUser = await loginWithApi(form.email, form.password);
+      const normalizedRoleName = (
+        apiUser.roleName ??
+        apiUser.role ??
+        "passenger"
+      ).toLowerCase();
       const role =
-        (apiUser.roleName ?? apiUser.role ?? "passenger").toLowerCase() ===
-        "admin"
+        normalizedRoleName === "admin" || normalizedRoleName === "super_admin"
           ? "Admin"
           : "Passenger";
       const user = {
         id: String(apiUser.id ?? ""),
         name: apiUser.name ?? "",
         email: apiUser.email ?? form.email,
-        password: form.password,
         role: role as "Passenger" | "Admin",
+        token: apiUser.token,
+        authenticated: apiUser.authenticated ?? Boolean(apiUser.token),
+        status: apiUser.status ?? "Active",
       };
 
       if (typeof window !== "undefined") {
         window.localStorage.setItem("aerovista-session-v1", String(user.id));
         window.localStorage.setItem(
           "aerovista-session-user-v1",
-          JSON.stringify(user),
+          JSON.stringify({
+            ...user,
+            password: undefined,
+          }),
         );
       }
 
@@ -90,7 +99,7 @@ export default function AuthPage() {
       </div>
 
       <div className="relative z-10 mx-auto grid min-h-screen w-full max-w-7xl items-center gap-10 px-6 py-10 lg:grid-cols-[1fr_460px] lg:px-12">
-        <section className="hidden max-w-xl lg:block">
+        <section className="hidden max-w-xl lg:block text-white">
           <div className="mb-12 flex items-center gap-3">
             <div className="grid size-11 place-items-center rounded-2xl bg-[#72e0c2] text-[#072735] shadow-[0_0_30px_rgba(114,224,194,0.3)]">
               <Icon name="plane" size={24} strokeWidth={2} />
@@ -127,7 +136,7 @@ export default function AuthPage() {
           </div>
         </section>
 
-        <section className="w-full rounded-[28px] border border-white/15 bg-white/97 p-7 text-[#172b3a] shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:p-10">
+        <section className="w-full rounded-[28px] border border-white/15 bg-white p-7 text-slate-900 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:p-10">
           <div className="mb-8 flex items-start justify-between">
             <div>
               <div className="mb-5 flex items-center gap-2 lg:hidden">
@@ -141,10 +150,10 @@ export default function AuthPage() {
               <p className="text-xs font-bold uppercase tracking-[2px] text-[#0e6b69]">
                 Member access
               </p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">
+              <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-900">
                 Welcome back
               </h2>
-              <p className="mt-2 text-sm text-[#71838a]">
+              <p className="mt-2 text-sm text-slate-600">
                 Sign in to manage your next destination.
               </p>
             </div>
@@ -154,7 +163,7 @@ export default function AuthPage() {
           </div>
 
           <form className="grid gap-5" onSubmit={submit}>
-            <label className="grid gap-2 text-xs font-bold text-[#425c64]">
+            <label className="grid gap-2 text-xs font-bold text-slate-700">
               Email address
               <input
                 required
@@ -165,10 +174,10 @@ export default function AuthPage() {
                 onChange={(event) =>
                   setForm({ ...form, email: event.target.value })
                 }
-                className="h-12 w-full rounded-xl border border-[#dce5e8] bg-[#f8fbfa] px-4 text-sm font-normal text-[#172b3a] outline-none transition placeholder:text-[#9aabb0] focus:border-[#0e6b69] focus:bg-white focus:ring-4 focus:ring-[#0e6b69]/10"
+                className="h-12 w-full rounded-xl border border-[#dce5e8] bg-[#f8fbfa] px-4 text-sm font-normal text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-[#0e6b69] focus:bg-white focus:ring-4 focus:ring-[#0e6b69]/10"
               />
             </label>
-            <label className="grid gap-2 text-xs font-bold text-[#425c64]">
+            <label className="grid gap-2 text-xs font-bold text-slate-700">
               Password
               <input
                 required
@@ -180,7 +189,7 @@ export default function AuthPage() {
                 onChange={(event) =>
                   setForm({ ...form, password: event.target.value })
                 }
-                className="h-12 w-full rounded-xl border border-[#dce5e8] bg-[#f8fbfa] px-4 text-sm font-normal text-[#172b3a] outline-none transition placeholder:text-[#9aabb0] focus:border-[#0e6b69] focus:bg-white focus:ring-4 focus:ring-[#0e6b69]/10"
+                className="h-12 w-full rounded-xl border border-[#dce5e8] bg-[#f8fbfa] px-4 text-sm font-normal text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-[#0e6b69] focus:bg-white focus:ring-4 focus:ring-[#0e6b69]/10"
               />
             </label>
             <button

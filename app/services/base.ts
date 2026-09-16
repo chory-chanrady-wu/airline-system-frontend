@@ -64,12 +64,29 @@ export async function apiProxy<T>(
   init: RequestInit = {},
 ): Promise<T> {
   const url = `${PROXY_PREFIX}${path.startsWith("/") ? path : `/${path}`}`;
+  const accessToken =
+    typeof window === "undefined"
+      ? null
+      : (window.localStorage.getItem("accessToken") ??
+        (() => {
+          try {
+            const session = window.localStorage.getItem(
+              "aerovista-session-user-v1",
+            );
+            return session
+              ? ((JSON.parse(session) as { token?: string }).token ?? null)
+              : null;
+          } catch {
+            return null;
+          }
+        })());
   const response = await fetch(url, {
     ...init,
     cache: "no-store",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(init.headers ?? {}),
     },
   });
@@ -83,6 +100,16 @@ export async function apiProxy<T>(
         payload,
         `Request failed with status ${response.status}.`,
       ),
+    );
+  }
+
+  const backendStatus =
+    payload && typeof payload === "object"
+      ? (payload as { status?: unknown }).status
+      : undefined;
+  if (typeof backendStatus === "number" && backendStatus >= 400) {
+    throw new Error(
+      getErrorMessage(payload, "The backend rejected the request."),
     );
   }
 

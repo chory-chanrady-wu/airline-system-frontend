@@ -37,6 +37,7 @@ export type ApiFlight = {
   fromAirportCode?: string;
   toAirportCode?: string;
   airline?: string;
+  airlineCode?: string;
   from?: string;
   to?: string;
   departureTime?: string;
@@ -48,6 +49,16 @@ export type ApiFlight = {
   seatsAvailable?: number;
   capacity?: number;
   status?: string;
+};
+
+export type ApiAircraft = {
+  id?: string | number;
+  registrationNumber?: string;
+  model?: string;
+  seatCapacity?: number;
+  active?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type ApiAirport = {

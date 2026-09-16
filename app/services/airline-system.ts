@@ -7,6 +7,9 @@ export type User = {
   email: string;
   password: string;
   role: Role;
+  token?: string;
+  authenticated?: boolean;
+  status?: string;
 };
 
 export type Airport = {
@@ -17,13 +20,17 @@ export type Airport = {
 };
 
 export type Route = {
+  id?: string | number;
   from: string;
   to: string;
   distance: number;
+  durationMinutes?: number;
 };
 
 export type Flight = {
   id: string;
+  databaseId?: string;
+  aircraftId?: string;
   airline: string;
   logo: string;
   from: string;
@@ -35,6 +42,7 @@ export type Flight = {
   price: number;
   capacity: number;
   seatsAvailable: number;
+  status?: string;
 };
 
 export type Booking = {
@@ -324,18 +332,68 @@ export function saveState(state: Snapshot) {
 }
 export function getSession() {
   if (typeof window === "undefined") return null;
+
   try {
-    return JSON.parse(
-      window.localStorage.getItem(SESSION_USER_KEY) ?? "null",
-    ) as User | null;
+    const raw = window.localStorage.getItem(SESSION_USER_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<User> & {
+      user?: Partial<User>;
+      token?: string;
+      authenticated?: boolean;
+      status?: string;
+    };
+    const session =
+      parsed.user && typeof parsed.user === "object" ? parsed.user : parsed;
+
+    const safeSession = {
+      ...(session ?? {}),
+    };
+    delete safeSession.password;
+
+    if (!safeSession || !safeSession.email) return null;
+
+    const role =
+      safeSession.role === "Admin" || safeSession.role === "Passenger"
+        ? safeSession.role
+        : "Passenger";
+
+    return {
+      id: String(safeSession.id ?? ""),
+      name: safeSession.name ?? "",
+      email: safeSession.email,
+      password: "",
+      role,
+      token:
+        typeof safeSession.token === "string"
+          ? safeSession.token
+          : typeof parsed.token === "string"
+            ? parsed.token
+            : undefined,
+      authenticated:
+        safeSession.authenticated ??
+        parsed.authenticated ??
+        Boolean(safeSession.token || parsed.token),
+      status: safeSession.status ?? parsed.status ?? "Active",
+    } as User;
   } catch {
     return null;
   }
 }
+
+export function isAuthenticatedSession() {
+  const session = getSession();
+  return Boolean(
+    session &&
+    (session.authenticated !== false || session.token || session.email),
+  );
+}
+
 export function logout() {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem(SESSION_KEY);
     window.localStorage.removeItem(SESSION_USER_KEY);
+    window.localStorage.removeItem("aerovista-airline-state-v1");
   }
 }
 

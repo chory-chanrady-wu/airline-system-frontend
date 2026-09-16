@@ -4,7 +4,10 @@ type IconName =
   | "check"
   | "chevron-down"
   | "clock"
+  | "close"
   | "globe"
+  | "logout"
+  | "menu"
   | "monitor"
   | "moon"
   | "plane"
@@ -77,11 +80,30 @@ export function Icon({
           <path d="M12 7v5l3 2" />
         </svg>
       );
+    case "close":
+      return (
+        <svg {...common}>
+          <path d="m6 6 12 12M18 6 6 18" />
+        </svg>
+      );
     case "globe":
       return (
         <svg {...common}>
           <circle cx="12" cy="12" r="9" />
           <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+        </svg>
+      );
+    case "logout":
+      return (
+        <svg {...common}>
+          <path d="M10 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4" />
+          <path d="m14 8 4 4-4 4M18 12H9" />
+        </svg>
+      );
+    case "menu":
+      return (
+        <svg {...common}>
+          <path d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       );
     case "monitor":

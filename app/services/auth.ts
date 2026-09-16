@@ -1,16 +1,45 @@
 import type { ApiSession, ApiUser } from "../ustils/type";
 import { apiProxy } from "./base";
 
-export async function loginWithApi(email: string, password: string) {
-  return apiProxy<ApiUser | { user?: ApiUser }>("/auth/login", {
+export type AuthenticatedApiUser = ApiUser & {
+  authenticated?: boolean;
+  token?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  tokenType?: string;
+};
+
+export async function loginWithApi(
+  email: string,
+  password: string,
+): Promise<AuthenticatedApiUser> {
+  const payload = await apiProxy<
+    | ApiUser
+    | {
+        user?: ApiUser;
+        authenticated?: boolean;
+        token?: string;
+        refreshToken?: string;
+        expiresIn?: number;
+        tokenType?: string;
+      }
+  >("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
-  }).then((payload) => {
-    if (payload && typeof payload === "object" && "user" in payload) {
-      return payload.user as ApiUser;
-    }
-    return payload as ApiUser;
   });
+
+  if (payload && typeof payload === "object" && "user" in payload) {
+    return {
+      ...(payload.user as ApiUser),
+      authenticated: payload.authenticated,
+      token: payload.token,
+      refreshToken: payload.refreshToken,
+      expiresIn: payload.expiresIn,
+      tokenType: payload.tokenType,
+    };
+  }
+
+  return payload as AuthenticatedApiUser;
 }
 
 export async function registerWithApi(payload: {

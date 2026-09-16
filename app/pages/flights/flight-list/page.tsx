@@ -6,17 +6,21 @@ import { PageTitle } from "../../../components/page-title";
 import {
   displayPrice,
   findFlight,
+  type Route,
   type Flight,
 } from "../../../services/airline-system";
 import {
   createFlightWithApi,
   deleteFlightWithApi,
+  fetchAircraftsFromApi,
   fetchFlightsFromApi,
+  fetchRoutesFromApi,
   updateFlightWithApi,
 } from "../../../services/api";
 
 type FlightForm = {
   flightNumber: string;
+  aircraftId: string;
   fromAirportCode: string;
   toAirportCode: string;
   departureTime: string;
@@ -26,8 +30,10 @@ type FlightForm = {
   seatsAvailable: string;
   status: string;
 };
+const DEFAULT_AIRLINE_ID = "10000000";
 const emptyForm: FlightForm = {
   flightNumber: "",
+  aircraftId: "",
   fromAirportCode: "",
   toAirportCode: "",
   departureTime: "",
@@ -40,6 +46,15 @@ const emptyForm: FlightForm = {
 
 export default function FlightListPage() {
   const [flights, setFlights] = useState<Flight[]>([]);
+  const [routes, setRoutes] = useState<Route[]>([]);
+  const [aircrafts, setAircrafts] = useState<
+    {
+      id: string;
+      registrationNumber: string;
+      model: string;
+      seatCapacity: number;
+    }[]
+  >([]);
   const [query, setQuery] = useState("");
   const [lookup, setLookup] = useState("");
   const [found, setFound] = useState<Flight | undefined>();
@@ -50,15 +65,83 @@ export default function FlightListPage() {
 
   async function refresh() {
     try {
+      const backendRoutes = await fetchRoutesFromApi();
+      setRoutes(
+        backendRoutes
+          .map((route) => {
+            const rawRoute = route as typeof route & Record<string, unknown>;
+            const routeId = route.id ?? rawRoute.routeId;
+            return {
+              id:
+                typeof routeId === "string" || typeof routeId === "number"
+                  ? routeId
+                  : undefined,
+              from: String(
+                route.from ??
+                  route.fromAirportCode ??
+                  rawRoute.origin ??
+                  rawRoute.originAirportCode ??
+                  "",
+              )
+                .trim()
+                .toUpperCase(),
+              to: String(
+                route.to ??
+                  route.toAirportCode ??
+                  rawRoute.destination ??
+                  rawRoute.destinationAirportCode ??
+                  "",
+              )
+                .trim()
+                .toUpperCase(),
+              distance: Number(
+                route.distance ??
+                  route.distanceKm ??
+                  rawRoute.distanceInKm ??
+                  0,
+              ),
+              durationMinutes: Number(
+                route.durationMinutes ?? rawRoute.duration ?? 0,
+              ),
+            };
+          })
+          .filter((route) => route.from && route.to),
+      );
+    } catch {
+      setRoutes([]);
+    }
+
+    try {
+      const backendAircrafts = await fetchAircraftsFromApi();
+      setAircrafts(
+        backendAircrafts
+          .filter((aircraft) => aircraft.active !== false)
+          .map((aircraft) => ({
+            id: String(aircraft.id ?? ""),
+            registrationNumber: aircraft.registrationNumber ?? "",
+            model: aircraft.model ?? "",
+            seatCapacity: Number(aircraft.seatCapacity ?? 0),
+          }))
+          .filter((aircraft) => aircraft.id && aircraft.seatCapacity > 0),
+      );
+    } catch {
+      setAircrafts([]);
+    }
+
+    try {
       const backendFlights = await fetchFlightsFromApi();
       if (backendFlights.length > 0) {
         setFlights(
           backendFlights.map((flight) => ({
             id: String(
-              flight.id ?? flight.flightId ?? flight.flightNumber ?? "",
+              flight.flightNumber ?? flight.flightId ?? flight.id ?? "",
             ),
-            airline: flight.airline ?? "",
-            logo: (flight.airline ?? "AV").slice(0, 2).toUpperCase(),
+            databaseId: String(flight.id ?? flight.flightId ?? ""),
+            aircraftId: String(flight.aircraftId ?? ""),
+            airline: flight.airline ?? flight.airlineCode ?? "",
+            logo: (flight.airline ?? flight.airlineCode ?? "AV")
+              .slice(0, 2)
+              .toUpperCase(),
             from: flight.from ?? flight.fromAirportCode ?? "",
             to: flight.to ?? flight.toAirportCode ?? "",
             departure: flight.departure ?? "",
@@ -68,12 +151,15 @@ export default function FlightListPage() {
             price: Number(flight.price ?? 0),
             capacity: Number(flight.capacity ?? flight.seatCapacity ?? 0),
             seatsAvailable: Number(flight.seatsAvailable ?? 0),
+            status: flight.status ?? "Scheduled",
           })),
         );
-        return;
+      } else {
+        setFlights([]);
       }
-    } catch {}
-    setFlights([]);
+    } catch {
+      setFlights([]);
+    }
   }
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -81,18 +167,120 @@ export default function FlightListPage() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!message) return;
+    const timer = window.setTimeout(() => setMessage(""), 3000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
+
   const visible = flights.filter((flight) =>
     `${flight.id} ${flight.from} ${flight.to} ${flight.airline}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
+  const selectedAircraft = aircrafts.find(
+    (aircraft) => aircraft.id === form.aircraftId,
+  );
+
+  function getRouteDuration(from: string, to: string) {
+    const route = routes.find((item) => item.from === from && item.to === to);
+    if (route?.durationMinutes && route.durationMinutes > 0) {
+      return route.durationMinutes;
+    }
+    return route?.distance
+      ? Math.max(60, Math.round((route.distance / 800) * 60))
+      : 120;
+  }
+
+  function formatDuration(durationMinutes: number) {
+    const totalSeconds = Math.max(0, Math.round(durationMinutes * 60));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const pad = (value: number) => String(value).padStart(2, "0");
+    return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+  }
+
+  function calculateArrivalTime(
+    departureDateTime: string,
+    from: string,
+    to: string,
+  ) {
+    if (!departureDateTime || !from || !to) return "";
+    const [datePart, timePart = "00:00"] = departureDateTime.split("T");
+    const [year, month, day] = datePart.split("-").map(Number);
+    const [hours, minutes] = timePart.split(":").map(Number);
+    const arrival = new Date(
+      year,
+      month - 1,
+      day,
+      hours,
+      minutes + getRouteDuration(from, to),
+    );
+    const pad = (value: number) => String(value).padStart(2, "0");
+    return `${arrival.getFullYear()}-${pad(arrival.getMonth() + 1)}-${pad(arrival.getDate())}T${pad(arrival.getHours())}:${pad(arrival.getMinutes())}`;
+  }
+
+  useEffect(() => {
+    if (!form.departureTime || !form.fromAirportCode || !form.toAirportCode) {
+      return;
+    }
+    const arrivalTime = calculateArrivalTime(
+      form.departureTime,
+      form.fromAirportCode,
+      form.toAirportCode,
+    );
+    if (arrivalTime !== form.arrivalTime) {
+      setForm((current) => ({ ...current, arrivalTime }));
+    }
+  }, [form.departureTime, form.fromAirportCode, form.toAirportCode, routes]);
+
   async function saveFlight(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (
+      !form.fromAirportCode ||
+      !form.toAirportCode ||
+      !form.aircraftId ||
+      !form.departureTime ||
+      !form.arrivalTime
+    ) {
+      setMessage(
+        "Please select an aircraft, route, and departure date/time first.",
+      );
+      return;
+    }
+    if (!selectedAircraft) {
+      setMessage("Please select an active aircraft.");
+      return;
+    }
+    const seatCapacity = Number(form.seatCapacity);
+    const seatsAvailable = Number(form.seatsAvailable);
+    if (seatCapacity !== selectedAircraft.seatCapacity) {
+      setMessage("Seat capacity must match the selected aircraft capacity.");
+      return;
+    }
+    if (seatsAvailable > seatCapacity) {
+      setMessage("Available seats cannot exceed seat capacity.");
+      return;
+    }
+    const selectedRoute = routes.find(
+      (route) =>
+        route.from === form.fromAirportCode && route.to === form.toAirportCode,
+    );
     const payload = {
-      ...form,
+      flightNumber: form.flightNumber.trim(),
+      airlineId: DEFAULT_AIRLINE_ID,
+      aircraftId: form.aircraftId,
+      routeId: String(selectedRoute?.id ?? "10000000"),
+      fromAirportCode: form.fromAirportCode,
+      toAirportCode: form.toAirportCode,
+      departureTime: `${form.departureTime}:00`,
+      arrivalTime: `${form.arrivalTime}:00`,
       price: Number(form.price),
-      seatCapacity: Number(form.seatCapacity),
-      seatsAvailable: Number(form.seatsAvailable),
+      seatCapacity,
+      seatsAvailable,
+      status: form.status,
     };
     try {
       if (editingId) await updateFlightWithApi(editingId, payload);
@@ -133,12 +321,8 @@ export default function FlightListPage() {
               {(
                 [
                   ["flightNumber", "Flight number"],
-                  ["fromAirportCode", "From airport"],
-                  ["toAirportCode", "To airport"],
                   ["departureTime", "Departure time"],
-                  ["arrivalTime", "Arrival time"],
                   ["price", "Price"],
-                  ["seatCapacity", "Seat capacity"],
                   ["seatsAvailable", "Seats available"],
                 ] as const
               ).map(([field, label]) => (
@@ -150,7 +334,7 @@ export default function FlightListPage() {
                   <input
                     required
                     type={
-                      field.includes("Time")
+                      field === "departureTime"
                         ? "datetime-local"
                         : field === "price" ||
                             field.includes("Capacity") ||
@@ -159,13 +343,138 @@ export default function FlightListPage() {
                           : "text"
                     }
                     value={form[field]}
-                    onChange={(event) =>
-                      setForm({ ...form, [field]: event.target.value })
+                    min={field === "seatsAvailable" ? 1 : undefined}
+                    max={
+                      field === "seatsAvailable"
+                        ? selectedAircraft?.seatCapacity
+                        : undefined
                     }
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setForm({
+                        ...form,
+                        [field]: value,
+                        ...(field === "departureTime"
+                          ? {
+                              arrivalTime: calculateArrivalTime(
+                                value,
+                                form.fromAirportCode,
+                                form.toAirportCode,
+                              ),
+                            }
+                          : {}),
+                      });
+                    }}
                     className="mt-1 block w-full rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px] font-normal"
                   />
                 </label>
               ))}
+              <label className="text-[10px] font-bold text-[#839198]">
+                Aircraft
+                <select
+                  required
+                  value={form.aircraftId}
+                  onChange={(event) => {
+                    const aircraft = aircrafts.find(
+                      (item) => item.id === event.target.value,
+                    );
+                    setForm({
+                      ...form,
+                      aircraftId: event.target.value,
+                      seatCapacity: aircraft
+                        ? String(aircraft.seatCapacity)
+                        : "",
+                      seatsAvailable: aircraft
+                        ? String(aircraft.seatCapacity)
+                        : "",
+                    });
+                  }}
+                  className="mt-1 block w-full rounded-lg border border-[#dce5e8] bg-white px-3 py-2 text-[11px] font-normal"
+                >
+                  <option value="">Select an aircraft</option>
+                  {aircrafts.map((aircraft) => (
+                    <option key={aircraft.id} value={aircraft.id}>
+                      {aircraft.registrationNumber} · {aircraft.model}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-[10px] font-bold text-[#839198]">
+                Seat capacity (automatic)
+                <input
+                  readOnly
+                  value={form.seatCapacity}
+                  placeholder="Select an aircraft"
+                  className="flight-auto-field mt-1 block w-full rounded-lg border px-3 py-2 text-[11px] font-normal"
+                />
+              </label>
+              <label className="text-[10px] font-bold text-[#839198]">
+                Route
+                <select
+                  required
+                  value={
+                    form.fromAirportCode && form.toAirportCode
+                      ? `${form.fromAirportCode}-${form.toAirportCode}`
+                      : ""
+                  }
+                  onChange={(event) => {
+                    const [from, to] = event.target.value.split("-");
+                    setForm({
+                      ...form,
+                      fromAirportCode: from ?? "",
+                      toAirportCode: to ?? "",
+                      arrivalTime: calculateArrivalTime(
+                        form.departureTime,
+                        from ?? "",
+                        to ?? "",
+                      ),
+                    });
+                  }}
+                  className="mt-1 block w-full rounded-lg border border-[#dce5e8] bg-white px-3 py-2 text-[11px] font-normal"
+                >
+                  <option value="">Select a route</option>
+                  {routes.map((route) => (
+                    <option
+                      key={`${route.from}-${route.to}`}
+                      value={`${route.from}-${route.to}`}
+                    >
+                      {route.from} → {route.to}
+                    </option>
+                  ))}
+                </select>
+                {routes.length === 0 && (
+                  <span className="mt-1 block font-normal text-[#c56d61]">
+                    Create a route first.
+                  </span>
+                )}
+              </label>
+              <label className="text-[10px] font-bold text-[#839198]">
+                Arrival time (automatic)
+                <input
+                  readOnly
+                  value={form.arrivalTime}
+                  placeholder="Select a route and date/time"
+                  className="flight-auto-field mt-1 block w-full rounded-lg border px-3 py-2 text-[11px] font-normal"
+                />
+              </label>
+              <label className="text-[10px] font-bold text-[#839198]">
+                Flight duration (automatic)
+                <input
+                  readOnly
+                  value={
+                    form.fromAirportCode && form.toAirportCode
+                      ? formatDuration(
+                          getRouteDuration(
+                            form.fromAirportCode,
+                            form.toAirportCode,
+                          ),
+                        )
+                      : ""
+                  }
+                  placeholder="Select a route"
+                  className="flight-auto-field mt-1 block w-full rounded-lg border px-3 py-2 text-[11px] font-normal"
+                />
+              </label>
               <label className="text-[10px] font-bold text-[#839198]">
                 Status
                 <select
@@ -248,58 +557,88 @@ export default function FlightListPage() {
             />
           </div>
         </div>
-        <div className="mt-6 grid gap-3">
-          {visible.map((flight) => (
-            <div
-              key={flight.id}
-              className="flex flex-wrap items-center gap-4 rounded-xl border border-[#dce5e8] bg-white p-4 text-[11px]"
-            >
-              <strong className="w-20">{flight.id}</strong>
-              <span className="flex-1">
-                {flight.airline} · {flight.from} → {flight.to}
-              </span>
-              <span>{flight.departureTime.replace("T", " ")}</span>
-              <span>{displayPrice(flight.price)}</span>
-              <span>
-                {flight.seatsAvailable}/{flight.capacity} seats
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(flight.id);
-                  setForm({
-                    flightNumber: flight.id,
-                    fromAirportCode: flight.from,
-                    toAirportCode: flight.to,
-                    departureTime: flight.departureTime.slice(0, 16),
-                    arrivalTime: flight.arrivalTime.slice(0, 16),
-                    price: String(flight.price),
-                    seatCapacity: String(flight.capacity),
-                    seatsAvailable: String(flight.seatsAvailable),
-                    status: "Scheduled",
-                  });
-                  setShowForm(true);
-                }}
-                className="font-semibold text-[#0e6b69]"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await deleteFlightWithApi(flight.id);
-                  } catch {}
-                  await refresh();
-                }}
-                className="font-semibold text-[#c56d61]"
-              >
-                Remove
-              </button>
+        <div className="mt-6 overflow-x-auto rounded-xl border border-[#dce5e8] bg-white">
+          <div className="min-w-275">
+            <div className="grid grid-cols-[130px_minmax(180px,1fr)_190px_190px_100px_130px_110px_130px] bg-[#f7fafb] px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-[#839198]">
+              <span>Flight number</span>
+              <span>Route</span>
+              <span>Departure</span>
+              <span>Arrival</span>
+              <span>Price</span>
+              <span>Seats</span>
+              <span>Status</span>
+              <span>Actions</span>
             </div>
-          ))}
+            {visible.map((flight) => (
+              <div
+                key={flight.id}
+                className="grid grid-cols-[130px_minmax(180px,1fr)_190px_190px_100px_130px_110px_130px] items-center border-t border-[#eef2f3] px-5 py-4 text-[11px]"
+              >
+                <strong>{flight.id}</strong>
+                <span>
+                  {flight.from} → {flight.to}
+                </span>
+                <span>{flight.departureTime.replace("T", " ")}</span>
+                <span>{flight.arrivalTime.replace("T", " ")}</span>
+                <span>{displayPrice(flight.price)}</span>
+                <span>
+                  {flight.seatsAvailable}/{flight.capacity} seats
+                </span>
+                <span>{flight.status ?? "Scheduled"}</span>
+                <span className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingId(flight.databaseId || flight.id);
+                      setForm({
+                        flightNumber: flight.id,
+                        aircraftId: flight.aircraftId ?? "",
+                        fromAirportCode: flight.from,
+                        toAirportCode: flight.to,
+                        departureTime: flight.departureTime.slice(0, 16),
+                        arrivalTime: calculateArrivalTime(
+                          flight.departureTime.slice(0, 16),
+                          flight.from,
+                          flight.to,
+                        ),
+                        price: String(flight.price),
+                        seatCapacity: String(flight.capacity),
+                        seatsAvailable: String(flight.seatsAvailable),
+                        status: flight.status ?? "Scheduled",
+                      });
+                      setShowForm(true);
+                    }}
+                    className="font-semibold text-[#0e6b69]"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await deleteFlightWithApi(
+                          flight.databaseId || flight.id,
+                        );
+                        await refresh();
+                        setMessage("Flight removed successfully.");
+                      } catch (error) {
+                        setMessage(
+                          error instanceof Error
+                            ? error.message
+                            : "Unable to remove flight.",
+                        );
+                      }
+                    }}
+                    className="font-semibold text-[#c56d61]"
+                  >
+                    Remove
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
           {visible.length === 0 && (
-            <p className="rounded-lg border border-dashed border-[#cbdcdf] p-6 text-center text-[11px] text-[#839198]">
+            <p className="m-4 rounded-lg border border-dashed border-[#cbdcdf] p-6 text-center text-[11px] text-[#839198]">
               No flights match your search.
             </p>
           )}

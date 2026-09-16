@@ -2,6 +2,7 @@ export * from "./auth";
 export * from "./users";
 export * from "./roles";
 export * from "./airports";
+export * from "./aircrafts";
 export * from "./flights";
 export * from "./bookings";
 export * from "./passengers";

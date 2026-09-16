@@ -72,6 +72,12 @@
   .module-content label {
     line-height: 1.35;
   }
+
+  .flight-auto-field {
+    background: #eef8f5;
+    border-color: #c5e2dc;
+    color: #0e6b69 !important;
+  }
 }
 
 @layer base {
@@ -251,6 +257,12 @@
   html[data-theme="dark"] select {
     color: #e8f1f2 !important;
     color-scheme: dark;
+  }
+
+  html[data-theme="dark"] .flight-auto-field {
+    background: #19323d !important;
+    border-color: #3b6971 !important;
+    color: #b9fff0 !important;
   }
 
   html[data-theme="dark"] option {
