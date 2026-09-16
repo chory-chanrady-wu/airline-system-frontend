@@ -9,8 +9,8 @@ import {
   fetchRolesFromApi,
   fetchUsersFromApi,
   updateRoleWithApi,
-  type ApiRole,
 } from "../../../services/api";
+import type { ApiRole } from "../../../ustils/type";
 
 const PERMISSIONS_BY_MODULE = {
   Users: ["USERS_READ", "USERS_WRITE"],

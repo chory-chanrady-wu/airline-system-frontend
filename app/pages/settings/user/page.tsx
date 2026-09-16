@@ -9,9 +9,8 @@ import {
   fetchRolesFromApi,
   fetchUsersFromApi,
   updateUserWithApi,
-  type ApiRole,
-  type ApiUser,
 } from "../../../services/api";
+import type { ApiRole, ApiUser } from "../../../ustils/type";
 
 type UserRow = {
   id: string;
