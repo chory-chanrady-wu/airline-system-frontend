@@ -60,6 +60,7 @@ export default function FlightListPage() {
   const [found, setFound] = useState<Flight | undefined>();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Flight | null>(null);
   const [form, setForm] = useState<FlightForm>(emptyForm);
   const [message, setMessage] = useState("");
 
@@ -296,6 +297,21 @@ export default function FlightListPage() {
       );
     }
   }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    try {
+      await deleteFlightWithApi(pendingDelete.databaseId || pendingDelete.id);
+      await refresh();
+      setMessage("Flight removed successfully.");
+      setPendingDelete(null);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to remove flight.",
+      );
+    }
+  }
+
   return (
     <AirlineSystem initialModule="Flight Management">
       <div className="module-page">
@@ -510,6 +526,42 @@ export default function FlightListPage() {
             {message}
           </p>
         )}
+        {pendingDelete && (
+          <div className="fixed inset-0 z-40 grid place-items-center bg-[#172b3a]/45 px-5">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-flight-title"
+              className="w-full max-w-md rounded-xl border border-[#dce5e8] bg-white p-6 text-[#172b3a] shadow-2xl"
+            >
+              <h2
+                id="delete-flight-title"
+                className="text-[15px] font-semibold"
+              >
+                Remove flight {pendingDelete.id}?
+              </h2>
+              <p className="mt-2 text-[11px] leading-5 text-[#71838a]">
+                This action cannot be undone.
+              </p>
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPendingDelete(null)}
+                  className="rounded-lg border border-[#dce5e8] px-4 py-2 text-[11px] font-bold text-[#526a73]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  className="rounded-lg bg-[#c56d61] px-4 py-2 text-[11px] font-bold text-white"
+                >
+                  Remove flight
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="grid gap-4 lg:grid-cols-[1fr_1.5fr]">
           <form
             onSubmit={(event) => {
@@ -614,21 +666,7 @@ export default function FlightListPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={async () => {
-                      try {
-                        await deleteFlightWithApi(
-                          flight.databaseId || flight.id,
-                        );
-                        await refresh();
-                        setMessage("Flight removed successfully.");
-                      } catch (error) {
-                        setMessage(
-                          error instanceof Error
-                            ? error.message
-                            : "Unable to remove flight.",
-                        );
-                      }
-                    }}
+                    onClick={() => setPendingDelete(flight)}
                     className="font-semibold text-[#c56d61]"
                   >
                     Remove
