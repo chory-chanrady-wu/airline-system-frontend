@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "./icons";
+import { fetchAirportsFromApi } from "../services/airports";
 
 const fieldClass =
   "flex h-[43px] items-center gap-2 rounded-lg border border-[#dfe7e9] px-2.5 text-[#0e6b69]";
@@ -30,6 +31,25 @@ export function FlightSearch({
   const [departureDate, setDepartureDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [message, setMessage] = useState("");
+  const [airports, setAirports] = useState<{ code: string; city: string }[]>(
+    [],
+  );
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const backendAirports = await fetchAirportsFromApi();
+        setAirports(
+          backendAirports.map((airport) => ({
+            code: String(airport.code ?? ""),
+            city: String(airport.city ?? ""),
+          })),
+        );
+      } catch {
+        setAirports([]);
+      }
+    })();
+  }, []);
 
   function swapAirports() {
     setFrom(to);
@@ -49,8 +69,8 @@ export function FlightSearch({
     }
     const passengerCount = Number.parseInt(passengers, 10);
     onSearch?.({
-      from: from.slice(-4, -1),
-      to: to.slice(-4, -1),
+      from,
+      to,
       departureDate,
       returnDate,
       passengers: passengerCount,
@@ -113,6 +133,11 @@ export function FlightSearch({
                 onChange={(event) => setFrom(event.target.value)}
               >
                 <option value="">Select origin</option>
+                {airports.map((airport) => (
+                  <option key={airport.code} value={airport.code}>
+                    {airport.code} - {airport.city}
+                  </option>
+                ))}
               </select>
             </span>
           </label>
@@ -136,6 +161,11 @@ export function FlightSearch({
                 onChange={(event) => setTo(event.target.value)}
               >
                 <option value="">Select destination</option>
+                {airports.map((airport) => (
+                  <option key={airport.code} value={airport.code}>
+                    {airport.code} - {airport.city}
+                  </option>
+                ))}
               </select>
             </span>
           </label>

@@ -4,51 +4,81 @@ import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../components/airline-system";
 import { Icon } from "../../components/icons";
 import { PageTitle } from "../../components/page-title";
-import { loadState, type User } from "../../services/airline-system";
 import {
   createPassengerWithApi,
   deletePassengerWithApi,
+  fetchBookingsFromApi,
   fetchPassengersFromApi,
+  fetchUsersFromApi,
 } from "../../services/api";
+import type { ApiPassenger, ApiUser } from "../../ustils/type";
+
+type PassengerRow = {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  passportNumber: string;
+  nationality: string;
+  phone: string;
+  dateOfBirth: string;
+  emergencyContact: string;
+};
+
+const emptyForm = {
+  userId: "",
+  fullName: "",
+  passportNumber: "",
+  nationality: "",
+  phone: "",
+  dateOfBirth: "",
+  emergencyContact: "",
+};
 
 export default function PassengersPage() {
-  const [passengers, setPassengers] = useState<User[]>([]);
+  const [passengers, setPassengers] = useState<PassengerRow[]>([]);
+  const [users, setUsers] = useState<ApiUser[]>([]);
+  const [bookingCounts, setBookingCounts] = useState<Record<string, number>>(
+    {},
+  );
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [message, setMessage] = useState("");
-  const [pendingDelete, setPendingDelete] = useState<User | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [pendingDelete, setPendingDelete] = useState<PassengerRow | null>(null);
+  const [form, setForm] = useState(emptyForm);
 
   async function refresh() {
     try {
-      const backendPassengers = await fetchPassengersFromApi();
-      if (backendPassengers.length > 0) {
-        setPassengers(
-          backendPassengers.map((passenger) => ({
-            id: String((passenger as Record<string, unknown>).id ?? ""),
-            name: String(
-              (passenger as Record<string, unknown>).userName ??
-                (passenger as Record<string, unknown>).name ??
-                "Passenger",
-            ),
-            email: String(
-              (passenger as Record<string, unknown>).userEmail ??
-                (passenger as Record<string, unknown>).email ??
-                "",
-            ),
-            password: String(
-              (passenger as Record<string, unknown>).password ?? "",
-            ),
-            role:
-              ((passenger as Record<string, unknown>).role as
-                | "Passenger"
-                | "Admin") ?? "Passenger",
-          })),
-        );
-        return;
+      const [backendPassengers, backendUsers, backendBookings] =
+        await Promise.all([
+          fetchPassengersFromApi(),
+          fetchUsersFromApi(),
+          fetchBookingsFromApi().catch(() => []),
+        ]);
+      setUsers(backendUsers);
+      const counts: Record<string, number> = {};
+      for (const booking of backendBookings) {
+        const passengerId = String(booking.passengerId ?? "");
+        if (!passengerId) continue;
+        counts[passengerId] = (counts[passengerId] ?? 0) + 1;
       }
-    } catch {}
-    setPassengers([]); // Clear passengers to prevent reading local demo records
+      setBookingCounts(counts);
+      setPassengers(
+        backendPassengers.map((passenger: ApiPassenger) => ({
+          id: String(passenger.id ?? ""),
+          userId: String(passenger.userId ?? ""),
+          name: String(passenger.fullName ?? passenger.userName ?? "Passenger"),
+          email: String(passenger.userEmail ?? ""),
+          passportNumber: String(passenger.passportNumber ?? ""),
+          nationality: String(passenger.nationality ?? ""),
+          phone: String(passenger.phone ?? ""),
+          dateOfBirth: String(passenger.dateOfBirth ?? ""),
+          emergencyContact: String(passenger.emergencyContact ?? ""),
+        })),
+      );
+    } catch {
+      setPassengers([]); // Clear passengers to prevent reading local demo records
+    }
   }
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -63,34 +93,42 @@ export default function PassengersPage() {
     return () => window.clearTimeout(timer);
   }, [message]);
 
-  const state = loadState();
-  const bookingCount = (id: string) =>
-    state.bookings.filter((booking) => booking.passengerId === id).length;
+  const bookingCount = (id: string) => bookingCounts[id] ?? 0;
   const activePassengers = passengers.filter(
     (passenger) => bookingCount(passenger.id) > 0,
   ).length;
-  const waitlistedPassengers = state.bookings.filter(
-    (booking) => booking.status === "Waitlisted",
-  ).length;
+  const totalBookings = Object.values(bookingCounts).reduce(
+    (sum, count) => sum + count,
+    0,
+  );
   const visiblePassengers = passengers.filter((passenger) =>
-    `${passenger.name} ${passenger.email}`
+    `${passenger.name} ${passenger.email} ${passenger.passportNumber}`
       .toLowerCase()
       .includes(query.toLowerCase()),
+  );
+  const passengerUserIds = new Set(
+    passengers.map((passenger) => passenger.userId),
+  );
+  const availableUsers = users.filter(
+    (user) => !passengerUserIds.has(String(user.id ?? "")),
   );
 
   async function createPassenger(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       await createPassengerWithApi({
-        name: form.name,
-        email: form.email,
-        password: form.password,
-        role: "Passenger",
+        userId: form.userId ? form.userId : null,
+        fullName: form.fullName,
+        passportNumber: form.passportNumber,
+        nationality: form.nationality,
+        phone: form.phone,
+        dateOfBirth: form.dateOfBirth,
+        emergencyContact: form.emergencyContact,
       });
-      setForm({ name: "", email: "", password: "" });
+      setForm(emptyForm);
       setShowForm(false);
       await refresh();
-      setMessage("Passenger account created successfully.");
+      setMessage("Passenger created successfully.");
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Unable to create passenger.",
@@ -172,12 +210,10 @@ export default function PassengersPage() {
             </span>
           </div>
           <div className="rounded-xl border border-[#dce5e8] bg-white p-5 shadow-sm">
-            <p className="text-[11px] text-[#839198]">Waitlisted passengers</p>
-            <strong className="mt-2 block text-2xl">
-              {waitlistedPassengers}
-            </strong>
+            <p className="text-[11px] text-[#839198]">Total bookings</p>
+            <strong className="mt-2 block text-2xl">{totalBookings}</strong>
             <span className="mt-1 block text-[10px] text-[#b1863f]">
-              FIFO waitlist
+              Across all passengers
             </span>
           </div>
         </section>
@@ -191,40 +227,79 @@ export default function PassengersPage() {
                 <Icon name="user" size={18} />
               </span>
               <div>
-                <h3 className="font-semibold">Add passenger account</h3>
+                <h3 className="font-semibold">Add passenger profile</h3>
                 <p className="mt-1 text-[11px] text-[#839198]">
-                  Create a Passenger login for the booking system.
+                  Optionally link a user account to a passenger profile.
                 </p>
               </div>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <select
+                value={form.userId}
+                onChange={(event) =>
+                  setForm({ ...form, userId: event.target.value })
+                }
+                className="rounded-lg border border-[#dce5e8] bg-white px-3 py-2 text-[11px]"
+              >
+                <option value="">No linked user account</option>
+                {availableUsers.map((user) => (
+                  <option key={user.id} value={String(user.id ?? "")}>
+                    {user.name} ({user.email})
+                  </option>
+                ))}
+              </select>
               <input
                 required
                 placeholder="Full name"
-                value={form.name}
+                value={form.fullName}
                 onChange={(event) =>
-                  setForm({ ...form, name: event.target.value })
+                  setForm({ ...form, fullName: event.target.value })
                 }
                 className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
               />
               <input
                 required
-                type="email"
-                placeholder="Email address"
-                value={form.email}
+                placeholder="Passport number"
+                value={form.passportNumber}
                 onChange={(event) =>
-                  setForm({ ...form, email: event.target.value })
+                  setForm({ ...form, passportNumber: event.target.value })
                 }
                 className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
               />
               <input
                 required
-                minLength={6}
-                type="password"
-                placeholder="Temporary password"
-                value={form.password}
+                placeholder="Nationality"
+                value={form.nationality}
                 onChange={(event) =>
-                  setForm({ ...form, password: event.target.value })
+                  setForm({ ...form, nationality: event.target.value })
+                }
+                className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
+              />
+              <input
+                required
+                placeholder="Phone number"
+                value={form.phone}
+                onChange={(event) =>
+                  setForm({ ...form, phone: event.target.value })
+                }
+                className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
+              />
+              <input
+                required
+                type="date"
+                placeholder="Date of birth"
+                value={form.dateOfBirth}
+                onChange={(event) =>
+                  setForm({ ...form, dateOfBirth: event.target.value })
+                }
+                className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
+              />
+              <input
+                required
+                placeholder="Emergency contact number"
+                value={form.emergencyContact}
+                onChange={(event) =>
+                  setForm({ ...form, emergencyContact: event.target.value })
                 }
                 className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
               />
@@ -262,11 +337,14 @@ export default function PassengersPage() {
           </div>
           <div className="overflow-x-auto">
             <div className="min-w-full">
-              <div className="grid grid-cols-[1.3fr_1.7fr_100px_130px_100px] bg-[#f7fafb] px-5 py-3 text-[10px] font-bold uppercase tracking-[1px] text-[#839198]">
+              <div className="grid grid-cols-[1.1fr_0.9fr_0.9fr_0.9fr_0.8fr_1fr_80px_80px] bg-[#f7fafb] px-5 py-3 text-[10px] font-bold uppercase tracking-[1px] text-[#839198]">
                 <span>Passenger</span>
-                <span>Email</span>
+                <span>Passport</span>
+                <span>Nationality</span>
+                <span>Phone</span>
+                <span>DOB</span>
+                <span>Emergency contact</span>
                 <span>Bookings</span>
-                <span>Status</span>
                 <span>Action</span>
               </div>
               {visiblePassengers.map((passenger) => {
@@ -274,7 +352,7 @@ export default function PassengersPage() {
                 return (
                   <div
                     key={passenger.id}
-                    className="grid grid-cols-[1.3fr_1.7fr_100px_130px_100px] items-center border-t border-[#eef2f3] px-5 py-4 text-[11px]"
+                    className="grid grid-cols-[1.1fr_0.9fr_0.9fr_0.9fr_0.8fr_1fr_80px_80px] items-center border-t border-[#eef2f3] px-5 py-4 text-[11px]"
                   >
                     <div className="flex items-center gap-3">
                       <span className="grid h-8 w-8 place-items-center rounded-full bg-[#dceee8] text-[10px] font-bold text-[#0e6b69]">
@@ -286,13 +364,20 @@ export default function PassengersPage() {
                       </span>
                       <strong>{passenger.name}</strong>
                     </div>
-                    <span className="text-[#71838a]">{passenger.email}</span>
-                    <span>{bookings}</span>
-                    <span>
-                      <span className="rounded-full bg-[#e7f5ed] px-2 py-1 text-[9px] font-bold text-[#4d9b73]">
-                        Active
-                      </span>
+                    <span className="text-[#71838a]">
+                      {passenger.passportNumber}
                     </span>
+                    <span className="text-[#71838a]">
+                      {passenger.nationality}
+                    </span>
+                    <span className="text-[#71838a]">{passenger.phone}</span>
+                    <span className="text-[#71838a]">
+                      {passenger.dateOfBirth}
+                    </span>
+                    <span className="text-[#71838a]">
+                      {passenger.emergencyContact}
+                    </span>
+                    <span>{bookings}</span>
                     <button
                       type="button"
                       onClick={() => setPendingDelete(passenger)}

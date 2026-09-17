@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../components/airline-system";
 import { Icon } from "../../components/icons";
 import { PageTitle } from "../../components/page-title";
@@ -11,6 +11,9 @@ import {
   cancelBookingWithApi,
   deleteBookingWithApi,
   fetchBookingsFromApi,
+  fetchFlightsFromApi,
+  fetchPassengersFromApi,
+  normalizeApiFlight,
   updateBookingWithApi,
   undoBookingCancellationWithApi,
 } from "../../services/api";
@@ -29,48 +32,82 @@ export default function ReservationsPage() {
 
   async function refresh() {
     try {
-      const backendBookings = await fetchBookingsFromApi();
+      const [backendBookings, backendPassengers, backendFlights] =
+        await Promise.all([
+          fetchBookingsFromApi(),
+          fetchPassengersFromApi().catch(() => []),
+          fetchFlightsFromApi().catch(() => []),
+        ]);
+      const passengerNameById = new Map(
+        backendPassengers.map((passenger) => [
+          String(passenger.id ?? ""),
+          String(
+            passenger.fullName ??
+              passenger.userName ??
+              `Passenger #${passenger.id}`,
+          ),
+        ]),
+      );
+      const routeByFlightId = new Map(
+        backendFlights.map((flight) => {
+          const normalized = normalizeApiFlight(flight);
+          return [
+            String(flight.id ?? flight.flightId ?? ""),
+            `${normalized.from} → ${normalized.to}`,
+          ];
+        }),
+      );
       if (backendBookings.length > 0) {
         setRows(
-          backendBookings.map((booking) => ({
-            id: String((booking as Record<string, unknown>).id ?? ""),
-            passengerId: String(
-              (booking as Record<string, unknown>).passengerId ?? "",
-            ),
-            passenger: String(
-              (booking as Record<string, unknown>).passenger ??
-                (booking as Record<string, unknown>).passengerName ??
-                "Guest",
-            ),
-            flightId: String(
-              (booking as Record<string, unknown>).flightId ?? "",
-            ),
-            route: String(
-              (booking as Record<string, unknown>).route ??
-                (booking as Record<string, unknown>).flightNumber ??
-                "",
-            ),
-            date: String(
-              (booking as Record<string, unknown>).date ??
-                new Date().toISOString().slice(0, 10),
-            ),
-            status:
-              ((booking as Record<string, unknown>).status as
-                | "Confirmed"
-                | "Waitlisted"
-                | "Cancelled") ?? "Confirmed",
-            amount: Number((booking as Record<string, unknown>).amount ?? 0),
-            waitlistPosition:
-              Number(
-                (booking as Record<string, unknown>).waitlistPosition ?? 0,
-              ) || undefined,
-          })),
+          backendBookings.map((booking) => {
+            const passengerId = String(booking.passengerId ?? "");
+            const flightId = String(booking.flightId ?? "");
+            return {
+              id: String(booking.id ?? booking.bookingId ?? ""),
+              passengerId,
+              passenger: String(
+                booking.passengerName ??
+                  passengerNameById.get(passengerId) ??
+                  "Guest",
+              ),
+              flightId,
+              flightNumber: String(booking.flightNumber ?? ""),
+              seatNumber: String(booking.seatNumber ?? ""),
+              route: String(
+                routeByFlightId.get(flightId) ??
+                  booking.flightNumber ??
+                  (booking as Record<string, unknown>).route ??
+                  "",
+              ),
+              date: String(
+                booking.departureTime ??
+                  (booking as Record<string, unknown>).bookedAt ??
+                  (booking as Record<string, unknown>).date ??
+                  new Date().toISOString().slice(0, 10),
+              ).slice(0, 10),
+              status:
+                (booking.status as "Confirmed" | "Waitlisted" | "Cancelled") ??
+                "Confirmed",
+              amount: Number(booking.amount ?? 0),
+              waitlistPosition:
+                Number(
+                  (booking as Record<string, unknown>).waitlistPosition ?? 0,
+                ) || undefined,
+            };
+          }),
         );
         return;
       }
     } catch {}
     setRows([]);
   }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const visibleRows = rows
     .filter((row) =>

@@ -27,6 +27,18 @@ export type ApiRole = {
   updatedAt?: string;
 };
 
+export type ApiAirlineRef = {
+  id?: string | number;
+  name?: string;
+};
+
+export type ApiAirportRef = {
+  code?: string;
+  city?: string;
+  country?: string;
+  timezone?: string;
+};
+
 export type ApiFlight = {
   id?: string | number;
   flightId?: string | number;
@@ -36,8 +48,10 @@ export type ApiFlight = {
   routeId?: string | number;
   fromAirportCode?: string;
   toAirportCode?: string;
-  airline?: string;
+  airline?: string | ApiAirlineRef;
   airlineCode?: string;
+  fromAirport?: ApiAirportRef;
+  toAirport?: ApiAirportRef;
   from?: string;
   to?: string;
   departureTime?: string;
@@ -88,11 +102,14 @@ export type ApiRoute = {
 
 export type ApiBooking = {
   id?: string | number;
+  bookingId?: string | number;
   bookingReference?: string;
   passengerId?: string | number;
   passengerName?: string;
   flightId?: string | number;
   flightNumber?: string;
+  departureTime?: string;
+  arrivalTime?: string;
   seatNumber?: string;
   amount?: number;
   currency?: string;
@@ -106,6 +123,7 @@ export type ApiBooking = {
 export type ApiPassenger = {
   id?: string | number;
   userId?: string | number;
+  fullName?: string;
   userName?: string;
   userEmail?: string;
   passportNumber?: string;

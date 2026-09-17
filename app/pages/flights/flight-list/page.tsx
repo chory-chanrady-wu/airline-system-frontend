@@ -15,6 +15,7 @@ import {
   fetchAircraftsFromApi,
   fetchFlightsFromApi,
   fetchRoutesFromApi,
+  normalizeApiFlight,
   updateFlightWithApi,
 } from "../../../services/api";
 
@@ -133,27 +134,16 @@ export default function FlightListPage() {
       const backendFlights = await fetchFlightsFromApi();
       if (backendFlights.length > 0) {
         setFlights(
-          backendFlights.map((flight) => ({
-            id: String(
-              flight.flightNumber ?? flight.flightId ?? flight.id ?? "",
-            ),
-            databaseId: String(flight.id ?? flight.flightId ?? ""),
-            aircraftId: String(flight.aircraftId ?? ""),
-            airline: flight.airline ?? flight.airlineCode ?? "",
-            logo: (flight.airline ?? flight.airlineCode ?? "AV")
-              .slice(0, 2)
-              .toUpperCase(),
-            from: flight.from ?? flight.fromAirportCode ?? "",
-            to: flight.to ?? flight.toAirportCode ?? "",
-            departure: flight.departure ?? "",
-            arrival: flight.arrival ?? "",
-            departureTime: flight.departureTime ?? new Date().toISOString(),
-            arrivalTime: flight.arrivalTime ?? new Date().toISOString(),
-            price: Number(flight.price ?? 0),
-            capacity: Number(flight.capacity ?? flight.seatCapacity ?? 0),
-            seatsAvailable: Number(flight.seatsAvailable ?? 0),
-            status: flight.status ?? "Scheduled",
-          })),
+          backendFlights.map((flight) => {
+            const normalized = normalizeApiFlight(flight);
+            return {
+              ...normalized,
+              id: String(
+                flight.flightNumber ?? flight.flightId ?? flight.id ?? "",
+              ),
+              databaseId: String(flight.id ?? flight.flightId ?? ""),
+            };
+          }),
         );
       } else {
         setFlights([]);

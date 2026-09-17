@@ -235,6 +235,14 @@
     background-color: #19323d !important;
   }
 
+  html[data-theme="dark"] [class*="bg-[#fbfdfd]"] {
+    background-color: #19323d !important;
+  }
+
+  html[data-theme="dark"] [class*="hover:bg-[#fbfdfd]"]:hover {
+    background-color: #1c3944 !important;
+  }
+
   html[data-theme="dark"] [class*="border-[#dce5e8]"],
   html[data-theme="dark"] [class*="border-[#eef2f3]"],
   html[data-theme="dark"] [class*="border-[#eef2f0]"] {

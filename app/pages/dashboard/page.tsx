@@ -10,35 +10,218 @@ import type { Module } from "../../components/airline-data";
 import {
   benchmarkStructures,
   displayPrice,
-  systemStats,
 } from "../../services/airline-system";
-import { fetchDashboardStatsFromApi } from "../../services/api";
+import {
+  fetchAirportsFromApi,
+  fetchBookingAnalyticsFromApi,
+  fetchBookingsFromApi,
+  fetchFlightsFromApi,
+  fetchPassengersFromApi,
+  fetchRevenueAnalyticsFromApi,
+  fetchRoutesFromApi,
+  normalizeApiFlight,
+} from "../../services/api";
+
+const emptyStats = {
+  totalAirports: 0,
+  totalRoutes: 0,
+  totalFlights: 0,
+  bookings: 0,
+  confirmedBookings: 0,
+  totalCapacity: 0,
+  availableSeats: 0,
+  occupiedSeats: 0,
+  overallLoadFactor: 0,
+  confirmedRevenue: 0,
+  loadByRoute: [] as {
+    route: string;
+    loadFactor: number;
+  }[],
+  bookingActivity: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
+    (label) => ({ label, count: 0 }),
+  ),
+  scheduledFlights: [] as {
+    id: string;
+    airline: string;
+    route: string;
+    departure: string;
+    seatsAvailable: number;
+    capacity: number;
+  }[],
+  recentBookings: [] as {
+    id: string;
+    passenger: string;
+    route: string;
+    date: string;
+    status: string;
+    amount: number;
+    flightNumber?: string;
+    seatNumber?: string;
+  }[],
+};
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [stats, setStats] = useState(() => systemStats());
+  const [stats, setStats] = useState(emptyStats);
   const benchmarks = benchmarkStructures();
   const maxBookingActivity = Math.max(
     1,
     ...stats.bookingActivity.map((item) => item.count),
   );
+
   useEffect(() => {
     const handle = window.setTimeout(async () => {
       try {
-        const backendStats = await fetchDashboardStatsFromApi();
-        if (backendStats && typeof backendStats === "object") {
-          const value = backendStats as { data?: unknown };
-          const payload = value.data ?? backendStats;
-          if (payload && typeof payload === "object") {
-            const typedPayload = payload as Record<string, unknown>;
-            if (typedPayload.totalFlights !== undefined) {
-              setStats(
-                (current) =>
-                  ({ ...current, ...typedPayload }) as typeof current,
-              );
-            }
+        const [
+          airports,
+          routes,
+          apiFlights,
+          bookingAnalytics,
+          revenueAnalytics,
+          bookings,
+          passengers,
+        ] = await Promise.all([
+          fetchAirportsFromApi().catch(() => []),
+          fetchRoutesFromApi().catch(() => []),
+          fetchFlightsFromApi().catch(() => []),
+          fetchBookingAnalyticsFromApi().catch(() => null),
+          fetchRevenueAnalyticsFromApi().catch(() => null),
+          fetchBookingsFromApi().catch(() => []),
+          fetchPassengersFromApi().catch(() => []),
+        ]);
+
+        const flights = apiFlights.map(normalizeApiFlight);
+        const totalCapacity = flights.reduce((sum, f) => sum + f.capacity, 0);
+        const availableSeats = flights.reduce(
+          (sum, f) => sum + f.seatsAvailable,
+          0,
+        );
+        const occupiedSeats = totalCapacity - availableSeats;
+
+        const routeMap = new Map<
+          string,
+          { capacity: number; available: number }
+        >();
+        for (const flight of flights) {
+          const key = `${flight.from} → ${flight.to}`;
+          const entry = routeMap.get(key) ?? { capacity: 0, available: 0 };
+          entry.capacity += flight.capacity;
+          entry.available += flight.seatsAvailable;
+          routeMap.set(key, entry);
+        }
+        const loadByRoute = Array.from(routeMap.entries()).map(
+          ([route, entry]) => ({
+            route,
+            loadFactor: entry.capacity
+              ? Math.round(
+                  ((entry.capacity - entry.available) / entry.capacity) * 100,
+                )
+              : 0,
+          }),
+        );
+
+        const bookingActivityCounts = [0, 0, 0, 0, 0, 0, 0];
+        for (const booking of bookings) {
+          const bookedAt = String(
+            (booking as Record<string, unknown>).bookedAt ??
+              booking.createdAt ??
+              "",
+          );
+          const day = bookedAt ? new Date(bookedAt).getDay() : NaN;
+          if (!Number.isNaN(day)) {
+            bookingActivityCounts[(day + 6) % 7] += 1;
           }
         }
+        const bookingActivity = [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri",
+          "Sat",
+          "Sun",
+        ].map((label, index) => ({
+          label,
+          count: bookingActivityCounts[index],
+        }));
+
+        const passengerNameById = new Map(
+          passengers.map((passenger) => [
+            String(passenger.id ?? ""),
+            String(
+              passenger.fullName ??
+                passenger.userName ??
+                `Passenger #${passenger.id}`,
+            ),
+          ]),
+        );
+        const flightById = new Map(
+          flights.map((flight) => [flight.id, flight]),
+        );
+        const recentBookings = bookings
+          .slice(-5)
+          .reverse()
+          .map((booking) => {
+            const flight = flightById.get(String(booking.flightId ?? ""));
+            return {
+              id: String(booking.id ?? booking.bookingId ?? ""),
+              passenger: String(
+                booking.passengerName ??
+                  passengerNameById.get(String(booking.passengerId ?? "")) ??
+                  "Guest",
+              ),
+              route: flight
+                ? `${flight.from} → ${flight.to}`
+                : String(booking.flightNumber ?? ""),
+              date: String(
+                (booking as Record<string, unknown>).bookedAt ??
+                  booking.createdAt ??
+                  "",
+              ).slice(0, 10),
+              status: String(booking.status ?? "Confirmed"),
+              amount: Number(booking.amount ?? 0),
+              flightNumber: booking.flightNumber,
+              seatNumber: booking.seatNumber,
+            };
+          });
+
+        const scheduledFlights = flights.slice(0, 5).map((flight) => ({
+          id: flight.flightNumber || flight.id,
+          airline: flight.airline,
+          route: `${flight.from} → ${flight.to}`,
+          departure: flight.departureTime.replace("T", " "),
+          seatsAvailable: flight.seatsAvailable,
+          capacity: flight.capacity,
+        }));
+
+        const analytics = bookingAnalytics as Record<string, unknown> | null;
+        const revenue = revenueAnalytics as Record<string, unknown> | null;
+        const bookingsCount = Number(
+          analytics?.bookings ?? bookings.length ?? 0,
+        );
+        const confirmedBookings = Number(
+          analytics?.confirmed ?? revenue?.confirmedBookings ?? 0,
+        );
+        const confirmedRevenue = Number(revenue?.totalRevenue ?? 0);
+
+        setStats({
+          totalAirports: airports.length,
+          totalRoutes: routes.length,
+          totalFlights: flights.length,
+          bookings: bookingsCount,
+          confirmedBookings,
+          totalCapacity,
+          availableSeats,
+          occupiedSeats,
+          overallLoadFactor: totalCapacity
+            ? Math.round((occupiedSeats / totalCapacity) * 100)
+            : 0,
+          confirmedRevenue,
+          loadByRoute,
+          bookingActivity,
+          scheduledFlights,
+          recentBookings,
+        });
       } catch {}
     }, 0);
     return () => window.clearTimeout(handle);

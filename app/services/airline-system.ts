@@ -932,5 +932,8 @@ export function toFlightCard(flight: Flight) {
     price: displayPrice(flight.price),
     duration: `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`,
     stops: "Nonstop",
+    departureDateTime: flight.departureTime.replace("T", " "),
+    arrivalDateTime: flight.arrivalTime.replace("T", " "),
+    seats: `${flight.seatsAvailable}/${flight.capacity} seats`,
   };
 }

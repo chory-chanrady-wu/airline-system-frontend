@@ -1,6 +1,38 @@
 import type { ApiFlight } from "../ustils/type";
 import { apiProxy, unpackArrayResult } from "./base";
 
+function airlineName(airline: ApiFlight["airline"]) {
+  if (airline && typeof airline === "object") return airline.name ?? "";
+  return airline ?? "";
+}
+
+// Flattens both the legacy flat flight shape and the nested airline/airport response into UI-ready fields.
+export function normalizeApiFlight(flight: ApiFlight) {
+  const name = airlineName(flight.airline) || flight.airlineCode || "";
+  const from =
+    flight.fromAirport?.code ?? flight.from ?? flight.fromAirportCode ?? "";
+  const to = flight.toAirport?.code ?? flight.to ?? flight.toAirportCode ?? "";
+  return {
+    id: String(flight.id ?? flight.flightId ?? ""),
+    flightNumber: String(flight.flightNumber ?? ""),
+    aircraftId: String(flight.aircraftId ?? ""),
+    airline: name,
+    logo: name.slice(0, 2).toUpperCase() || "AV",
+    from,
+    to,
+    fromCity: flight.fromAirport?.city ?? "",
+    toCity: flight.toAirport?.city ?? "",
+    departure: flight.departure ?? "",
+    arrival: flight.arrival ?? "",
+    departureTime: flight.departureTime ?? new Date().toISOString(),
+    arrivalTime: flight.arrivalTime ?? new Date().toISOString(),
+    price: Number(flight.price ?? 0),
+    capacity: Number(flight.capacity ?? flight.seatCapacity ?? 0),
+    seatsAvailable: Number(flight.seatsAvailable ?? 0),
+    status: flight.status ?? "Scheduled",
+  };
+}
+
 export async function fetchFlightsFromApi() {
   const result = await apiProxy<unknown>("/flights", { method: "GET" });
   return unpackArrayResult<ApiFlight>(result);

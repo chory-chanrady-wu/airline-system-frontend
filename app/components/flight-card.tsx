@@ -11,6 +11,9 @@ type FlightCardProps = {
   duration: string;
   stops: string;
   price: string;
+  departureDateTime?: string;
+  arrivalDateTime?: string;
+  seats?: string;
   featured?: boolean;
   onSelect?: () => void;
 };
@@ -26,6 +29,9 @@ export function FlightCard({
   duration,
   stops,
   price,
+  departureDateTime,
+  arrivalDateTime,
+  seats,
   featured,
   onSelect,
 }: FlightCardProps) {
@@ -70,6 +76,16 @@ export function FlightCard({
         <span className="text-[#c5d3d1]">•</span>
         <span>{stops}</span>
       </div>
+      {(departureDateTime || arrivalDateTime || seats) && (
+        <div className="col-span-2 flex flex-wrap items-center justify-start gap-x-3 gap-y-1 text-left text-[12px] text-[#8b999e] sm:col-span-4">
+          {departureDateTime && arrivalDateTime && (
+            <span>
+              {departureDateTime} → {arrivalDateTime}
+            </span>
+          )}
+          {seats && <span>{seats}</span>}
+        </div>
+      )}
       <div className="col-start-2 row-start-3 flex items-center justify-end gap-2.5 sm:col-start-4 sm:row-auto">
         <span className="self-end mb-[5px] text-[9px] text-[#8d9b9d]">
           from

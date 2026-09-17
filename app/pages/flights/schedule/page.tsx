@@ -6,7 +6,9 @@ import { PageTitle } from "../../../components/page-title";
 import { displayPrice, type Flight } from "../../../services/airline-system";
 import {
   fetchAirportsFromApi,
+  fetchFlightsFromApi,
   fetchFlightScheduleFromApi,
+  normalizeApiFlight,
 } from "../../../services/api";
 
 export default function SchedulePage() {
@@ -35,36 +37,25 @@ export default function SchedulePage() {
         Array.isArray(backendFlights) &&
         backendFlights.length > 0
       ) {
-        setFlights(
-          backendFlights.map((flight) => ({
-            id: String((flight as Record<string, unknown>).id ?? ""),
-            airline: String((flight as Record<string, unknown>).airline ?? ""),
-            logo: String((flight as Record<string, unknown>).airline ?? "AV")
-              .slice(0, 2)
-              .toUpperCase(),
-            from: String((flight as Record<string, unknown>).from ?? ""),
-            to: String((flight as Record<string, unknown>).to ?? ""),
-            departure: String(
-              (flight as Record<string, unknown>).departure ?? "",
-            ),
-            arrival: String((flight as Record<string, unknown>).arrival ?? ""),
-            departureTime: String(
-              (flight as Record<string, unknown>).departureTime ??
-                new Date().toISOString(),
-            ),
-            arrivalTime: String(
-              (flight as Record<string, unknown>).arrivalTime ??
-                new Date().toISOString(),
-            ),
-            price: Number((flight as Record<string, unknown>).price ?? 0),
-            capacity: Number((flight as Record<string, unknown>).capacity ?? 0),
-            seatsAvailable: Number(
-              (flight as Record<string, unknown>).seatsAvailable ?? 0,
-            ),
-          })),
-        );
+        setFlights(backendFlights.map(normalizeApiFlight));
         return;
       }
+    } catch {}
+    // Backend /flights/schedule currently returns no results, fall back to client-side filtering.
+    try {
+      const allFlights = await fetchFlightsFromApi();
+      const matches = allFlights.map(normalizeApiFlight).filter((flight) => {
+        if (from && flight.from !== from) return false;
+        if (to && flight.to !== to) return false;
+        const flightDate = flight.departureTime.slice(0, 10);
+        const flightTime = flight.departureTime.slice(11, 16);
+        if (date && flightDate !== date) return false;
+        if (start && flightTime < start) return false;
+        if (end && flightTime > end) return false;
+        return true;
+      });
+      setFlights(matches);
+      return;
     } catch {}
     setFlights([]);
   }

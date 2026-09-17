@@ -17,15 +17,35 @@ import {
 } from "../../services/airline-system";
 import {
   createBookingWithApi,
+  createPassengerWithApi,
   fetchAirportsFromApi,
   fetchFlightsFromApi,
+  fetchPassengersFromApi,
+  normalizeApiFlight,
   searchFlightsFromApi,
 } from "../../services/api";
+import type { ApiPassenger } from "../../ustils/type";
+
+type PassengerOption = {
+  id: string;
+  name: string;
+  passportNumber: string;
+};
+
+const emptyNewPassenger = {
+  fullName: "",
+  passportNumber: "",
+  nationality: "",
+  phone: "",
+  dateOfBirth: "",
+  emergencyContact: "",
+};
 
 export default function BookFlightPage() {
   const [availableFlights, setAvailableFlights] = useState<Flight[]>([]);
   const [session] = useState<User | null>(() => getSession());
   const [message, setMessage] = useState("");
+  const [passengers, setPassengers] = useState<PassengerOption[]>([]);
   const [airports, setAirports] = useState<
     Awaited<ReturnType<typeof fetchAirportsFromApi>>
   >([]);
@@ -34,6 +54,33 @@ export default function BookFlightPage() {
   const [itineraries, setItineraries] = useState<ReturnType<
     typeof findItineraries
   > | null>(null);
+  const [bookingFlightId, setBookingFlightId] = useState<string | null>(null);
+  const [passengerMode, setPassengerMode] = useState<"existing" | "new">(
+    "existing",
+  );
+  const [selectedPassengerId, setSelectedPassengerId] = useState("");
+  const [newPassenger, setNewPassenger] = useState(emptyNewPassenger);
+  const [booking, setBooking] = useState(false);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  async function refreshPassengers() {
+    try {
+      const backendPassengers = await fetchPassengersFromApi();
+      setPassengers(
+        backendPassengers.map((passenger: ApiPassenger) => ({
+          id: String(passenger.id ?? ""),
+          name: String(
+            passenger.fullName ??
+              passenger.userName ??
+              `Passenger #${passenger.id}`,
+          ),
+          passportNumber: String(passenger.passportNumber ?? ""),
+        })),
+      );
+    } catch {
+      setPassengers([]);
+    }
+  }
 
   useState(() => {
     void (async () => {
@@ -51,6 +98,15 @@ export default function BookFlightPage() {
         }
       } catch {}
     })();
+    void refreshPassengers();
+    void (async () => {
+      try {
+        const allFlights = await fetchFlightsFromApi();
+        setAvailableFlights(allFlights.map(normalizeApiFlight));
+      } catch {
+        setAvailableFlights([]);
+      }
+    })();
   });
 
   async function handleSearch(values: FlightSearchValues) {
@@ -65,111 +121,125 @@ export default function BookFlightPage() {
         Array.isArray(backendFlights) &&
         backendFlights.length > 0
       ) {
-        setAvailableFlights(
-          backendFlights.map((flight) => ({
-            id: String((flight as Record<string, unknown>).id ?? ""),
-            airline: String((flight as Record<string, unknown>).airline ?? ""),
-            logo: String((flight as Record<string, unknown>).airline ?? "AV")
-              .slice(0, 2)
-              .toUpperCase(),
-            from: String(
-              (flight as Record<string, unknown>).from ?? values.from,
-            ),
-            to: String((flight as Record<string, unknown>).to ?? values.to),
-            departure: String(
-              (flight as Record<string, unknown>).departure ?? "",
-            ),
-            arrival: String((flight as Record<string, unknown>).arrival ?? ""),
-            departureTime: String(
-              (flight as Record<string, unknown>).departureTime ??
-                new Date().toISOString(),
-            ),
-            arrivalTime: String(
-              (flight as Record<string, unknown>).arrivalTime ??
-                new Date().toISOString(),
-            ),
-            price: Number((flight as Record<string, unknown>).price ?? 0),
-            capacity: Number((flight as Record<string, unknown>).capacity ?? 0),
-            seatsAvailable: Number(
-              (flight as Record<string, unknown>).seatsAvailable ?? 0,
-            ),
-          })),
-        );
+        setAvailableFlights(backendFlights.map(normalizeApiFlight));
         return;
       }
+    } catch {}
+    // Backend /flights/search currently returns no results, fall back to client-side filtering.
+    try {
+      const allFlights = await fetchFlightsFromApi();
+      const matches = allFlights
+        .map(normalizeApiFlight)
+        .filter(
+          (flight) =>
+            flight.from === values.from &&
+            flight.to === values.to &&
+            flight.departureTime.slice(0, 10) === values.departureDate,
+        );
+      setAvailableFlights(matches);
+      return;
     } catch {}
     setAvailableFlights([]);
   }
 
   async function selectFlight(flightId: string) {
     if (!session) {
-      setMessage("Log in as a passenger before booking a seat.");
+      setMessage("Log in before booking a seat.");
       return;
     }
+    setMessage("");
+    setBookingFlightId(flightId);
+    setPassengerMode(passengers.length > 0 ? "existing" : "new");
+    setSelectedPassengerId(passengers[0]?.id ?? "");
+    setNewPassenger(emptyNewPassenger);
+  }
+
+  async function confirmBooking() {
+    const flight = availableFlights.find((item) => item.id === bookingFlightId);
+    if (!bookingFlightId || !flight) return;
+    setBooking(true);
     try {
+      let passengerId = "";
+      let passengerName = "";
+      if (passengerMode === "existing") {
+        const passenger = passengers.find(
+          (item) => item.id === selectedPassengerId,
+        );
+        if (!passenger) {
+          setMessage("Please select a passenger.");
+          setBooking(false);
+          return;
+        }
+        passengerId = passenger.id;
+        passengerName = passenger.name;
+      } else {
+        if (
+          !newPassenger.fullName ||
+          !newPassenger.passportNumber ||
+          !newPassenger.nationality ||
+          !newPassenger.phone ||
+          !newPassenger.dateOfBirth ||
+          !newPassenger.emergencyContact
+        ) {
+          setMessage("Please fill in all new passenger fields.");
+          setBooking(false);
+          return;
+        }
+        // Not linked to the logged-in session: a user can only have one passenger profile.
+        const created = (await createPassengerWithApi({
+          userId: null,
+          fullName: newPassenger.fullName,
+          passportNumber: newPassenger.passportNumber,
+          nationality: newPassenger.nationality,
+          phone: newPassenger.phone,
+          dateOfBirth: newPassenger.dateOfBirth,
+          emergencyContact: newPassenger.emergencyContact,
+        })) as Record<string, unknown>;
+        const createdPassenger = (created.passenger ?? created) as Record<
+          string,
+          unknown
+        >;
+        passengerId = String(createdPassenger.id ?? "");
+        passengerName = newPassenger.fullName;
+        await refreshPassengers();
+        // Switch to the newly created passenger so a retry doesn't create another duplicate.
+        setPassengerMode("existing");
+        setSelectedPassengerId(passengerId);
+        setNewPassenger(emptyNewPassenger);
+      }
       const bookingPayload = {
-        flightId,
-        passengerId: session.id,
-        passenger: session.name,
+        passengerId,
+        passengerName,
+        flightId: bookingFlightId,
+        amount: flight.price,
+        currency: "USD",
+        status: "CONFIRMED",
       };
       const backendBooking = await createBookingWithApi(bookingPayload);
       if (backendBooking && typeof backendBooking === "object") {
         const payload = backendBooking as Record<string, unknown>;
-        const id = String(payload.id ?? flightId);
-        const status = String(payload.status ?? "Confirmed");
+        const id = String(payload.bookingId ?? payload.id ?? bookingFlightId);
+        const status = String(payload.status ?? "CONFIRMED").toUpperCase();
         const waitlistPosition = payload.waitlistPosition;
         setMessage(
-          status === "Confirmed"
+          status === "CONFIRMED"
             ? `Booking ${id} confirmed.`
             : `Flight full. You are waitlisted at position ${waitlistPosition}.`,
         );
       }
-      setAvailableFlights(
-        await (async () => {
-          try {
-            const backendFlights = await fetchFlightsFromApi();
-            if (backendFlights.length > 0) {
-              return backendFlights.map((flight) => ({
-                id: String((flight as Record<string, unknown>).id ?? ""),
-                airline: String(
-                  (flight as Record<string, unknown>).airline ?? "",
-                ),
-                logo: String((flight as Record<string, unknown>).airline ?? "")
-                  .slice(0, 2)
-                  .toUpperCase(),
-                from: String((flight as Record<string, unknown>).from ?? ""),
-                to: String((flight as Record<string, unknown>).to ?? ""),
-                departure: String(
-                  (flight as Record<string, unknown>).departure ?? "",
-                ),
-                arrival: String(
-                  (flight as Record<string, unknown>).arrival ?? "",
-                ),
-                departureTime: String(
-                  (flight as Record<string, unknown>).departureTime ??
-                    new Date().toISOString(),
-                ),
-                arrivalTime: String(
-                  (flight as Record<string, unknown>).arrivalTime ??
-                    new Date().toISOString(),
-                ),
-                price: Number((flight as Record<string, unknown>).price ?? 0),
-                capacity: Number(
-                  (flight as Record<string, unknown>).capacity ?? 0,
-                ),
-                seatsAvailable: Number(
-                  (flight as Record<string, unknown>).seatsAvailable ?? 0,
-                ),
-              }));
-            }
-          } catch {}
-          return [];
-        })(),
-      );
+      setBookingFlightId(null);
+      try {
+        const backendFlights = await fetchFlightsFromApi();
+        setAvailableFlights(backendFlights.map(normalizeApiFlight));
+      } catch {
+        setAvailableFlights([]);
+      }
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Unable to complete booking.",
       );
+    } finally {
+      setBooking(false);
     }
   }
 
@@ -178,6 +248,145 @@ export default function BookFlightPage() {
       <div className="module-page">
         <PageTitle eyebrow="Reservation workspace" title="Book a new flight" />
         <div className="w-full">
+          {bookingFlightId && (
+            <div className="fixed inset-0 z-40 grid place-items-center bg-[#172b3a]/20 px-5">
+              <div className="w-full max-w-md rounded-xl border border-[#dce5e8] bg-white p-6 text-[#172b3a] shadow-2xl">
+                <p className="text-[15px] font-semibold">Confirm passenger</p>
+                <p className="mt-2 text-[11px] leading-5 text-[#71838a]">
+                  Select an existing passenger or create a new one for this
+                  booking.
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPassengerMode("existing")}
+                    className={`rounded-lg border px-3 py-2 text-[11px] font-bold ${passengerMode === "existing" ? "border-[#0e6b69] bg-[#eef8f5] text-[#0e6b69]" : "border-[#dce5e8] text-[#526a73]"}`}
+                  >
+                    Existing passenger
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPassengerMode("new")}
+                    className={`rounded-lg border px-3 py-2 text-[11px] font-bold ${passengerMode === "new" ? "border-[#0e6b69] bg-[#eef8f5] text-[#0e6b69]" : "border-[#dce5e8] text-[#526a73]"}`}
+                  >
+                    New passenger
+                  </button>
+                </div>
+                {passengerMode === "existing" ? (
+                  <select
+                    value={selectedPassengerId}
+                    onChange={(event) =>
+                      setSelectedPassengerId(event.target.value)
+                    }
+                    className="mt-4 w-full rounded-lg border border-[#dce5e8] bg-white px-3 py-2 text-[11px]"
+                  >
+                    <option value="">Select passenger</option>
+                    {passengers.map((passenger) => (
+                      <option key={passenger.id} value={passenger.id}>
+                        {passenger.name} · {passenger.passportNumber}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="mt-4 grid gap-2">
+                    <input
+                      placeholder="Full name"
+                      value={newPassenger.fullName}
+                      onChange={(event) =>
+                        setNewPassenger({
+                          ...newPassenger,
+                          fullName: event.target.value,
+                        })
+                      }
+                      className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
+                    />
+                    <input
+                      placeholder="Passport number"
+                      value={newPassenger.passportNumber}
+                      onChange={(event) =>
+                        setNewPassenger({
+                          ...newPassenger,
+                          passportNumber: event.target.value,
+                        })
+                      }
+                      className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
+                    />
+                    <input
+                      placeholder="Nationality"
+                      value={newPassenger.nationality}
+                      onChange={(event) =>
+                        setNewPassenger({
+                          ...newPassenger,
+                          nationality: event.target.value,
+                        })
+                      }
+                      className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
+                    />
+                    <input
+                      placeholder="Phone number"
+                      value={newPassenger.phone}
+                      onChange={(event) =>
+                        setNewPassenger({
+                          ...newPassenger,
+                          phone: event.target.value,
+                        })
+                      }
+                      className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
+                    />
+                    <input
+                      type="date"
+                      placeholder="Date of birth"
+                      value={newPassenger.dateOfBirth}
+                      onChange={(event) =>
+                        setNewPassenger({
+                          ...newPassenger,
+                          dateOfBirth: event.target.value,
+                        })
+                      }
+                      className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
+                    />
+                    <input
+                      placeholder="Emergency contact number"
+                      value={newPassenger.emergencyContact}
+                      onChange={(event) =>
+                        setNewPassenger({
+                          ...newPassenger,
+                          emergencyContact: event.target.value,
+                        })
+                      }
+                      className="rounded-lg border border-[#dce5e8] px-3 py-2 text-[11px]"
+                    />
+                  </div>
+                )}
+                {message && (
+                  <p
+                    className="mt-4 rounded-lg bg-[#fbeae7] px-3 py-2 text-[11px] text-[#c56d61]"
+                    role="status"
+                  >
+                    {message}
+                  </p>
+                )}
+                <div className="mt-6 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={booking}
+                    onClick={() => setBookingFlightId(null)}
+                    className="rounded-lg border border-[#dce5e8] px-4 py-2 text-[11px] font-bold text-[#526a73]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={booking}
+                    onClick={confirmBooking}
+                    className="rounded-lg bg-[#0e6b69] px-4 py-2 text-[11px] font-bold text-white disabled:opacity-60"
+                  >
+                    {booking ? "Booking..." : "Confirm booking"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <FlightSearch overlap={false} onSearch={handleSearch} />
           <div className="mt-8">
             <div className="mb-4">
