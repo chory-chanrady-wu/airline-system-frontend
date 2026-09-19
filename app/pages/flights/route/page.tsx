@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
+import { useRealtimeRefresh } from "../../../hooks/use-realtime-refresh";
 import { calculateDistance, loadState } from "../../../services/airline-system";
 import {
   createRouteWithApi,
@@ -118,6 +119,7 @@ export default function RoutePage() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+  useRealtimeRefresh("routes", refresh);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const routeDistance = calculatedDistance ?? form.distance;

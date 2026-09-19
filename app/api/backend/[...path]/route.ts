@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { publishRealtimeEvent } from "../../../services/realtime";
 
 const API_BASE_URL = "http://localhost:8080/api/v1";
 
@@ -62,6 +63,18 @@ async function proxyToBackend(
 
     const response = await fetch(url, init);
     const text = await response.text();
+
+    if (response.ok && method !== "GET" && segments[0]) {
+      publishRealtimeEvent(
+        segments[0],
+        method === "POST"
+          ? "created"
+          : method === "DELETE"
+            ? "deleted"
+            : "updated",
+        targetPath,
+      );
+    }
 
     try {
       const json = JSON.parse(text);
