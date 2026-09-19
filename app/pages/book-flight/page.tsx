@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../components/airline-system";
 import { FlightCard } from "../../components/flight-card";
 import {
@@ -12,8 +12,6 @@ import {
   getSession,
   findItineraries,
   toFlightCard,
-  type Flight,
-  type User,
 } from "../../services/airline-system";
 import {
   createBookingWithApi,
@@ -24,7 +22,7 @@ import {
   normalizeApiFlight,
   searchFlightsFromApi,
 } from "../../services/api";
-import type { ApiPassenger } from "../../ustils/type";
+import type { ApiPassenger, Flight, User } from "../../ustils/type";
 
 type PassengerOption = {
   id: string;
@@ -32,12 +30,16 @@ type PassengerOption = {
   passportNumber: string;
 };
 
+function todayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 const emptyNewPassenger = {
   fullName: "",
   passportNumber: "",
   nationality: "",
   phone: "",
-  dateOfBirth: "",
+  dateOfBirth: todayDate(),
   emergencyContact: "",
 };
 
@@ -45,6 +47,7 @@ export default function BookFlightPage() {
   const [availableFlights, setAvailableFlights] = useState<Flight[]>([]);
   const [session] = useState<User | null>(() => getSession());
   const [message, setMessage] = useState("");
+  const [successToast, setSuccessToast] = useState("");
   const [passengers, setPassengers] = useState<PassengerOption[]>([]);
   const [airports, setAirports] = useState<
     Awaited<ReturnType<typeof fetchAirportsFromApi>>
@@ -62,6 +65,12 @@ export default function BookFlightPage() {
   const [newPassenger, setNewPassenger] = useState(emptyNewPassenger);
   const [booking, setBooking] = useState(false);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  useEffect(() => {
+    if (!successToast) return;
+    const timer = window.setTimeout(() => setSuccessToast(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [successToast]);
 
   async function refreshPassengers() {
     try {
@@ -158,6 +167,7 @@ export default function BookFlightPage() {
     const flight = availableFlights.find((item) => item.id === bookingFlightId);
     if (!bookingFlightId || !flight) return;
     setBooking(true);
+    setSuccessToast("");
     try {
       let passengerId = "";
       let passengerName = "";
@@ -216,16 +226,21 @@ export default function BookFlightPage() {
         status: "CONFIRMED",
       };
       const backendBooking = await createBookingWithApi(bookingPayload);
+      let flightNumber = flight.flightNumber || bookingFlightId;
       if (backendBooking && typeof backendBooking === "object") {
         const payload = backendBooking as Record<string, unknown>;
         const id = String(payload.bookingId ?? payload.id ?? bookingFlightId);
+        flightNumber = String(payload.flightNumber ?? flightNumber);
         const status = String(payload.status ?? "CONFIRMED").toUpperCase();
         const waitlistPosition = payload.waitlistPosition;
         setMessage(
           status === "CONFIRMED"
-            ? `Booking ${id} confirmed.`
+            ? `Booking ${id} confirmed for flight ${flightNumber}.`
             : `Flight full. You are waitlisted at position ${waitlistPosition}.`,
         );
+        if (status === "CONFIRMED") {
+          setSuccessToast(`Booking successful for flight ${flightNumber}.`);
+        }
       }
       setBookingFlightId(null);
       try {
@@ -235,6 +250,7 @@ export default function BookFlightPage() {
         setAvailableFlights([]);
       }
     } catch (error) {
+      setSuccessToast("");
       setMessage(
         error instanceof Error ? error.message : "Unable to complete booking.",
       );
@@ -245,6 +261,14 @@ export default function BookFlightPage() {
 
   return (
     <AirlineSystem initialModule="Book flight">
+      {successToast && (
+        <div
+          className="fixed right-5 top-5 z-50 rounded-lg bg-[#0e6b69] px-4 py-3 text-[12px] font-semibold text-white shadow-lg"
+          role="status"
+        >
+          {successToast}
+        </div>
+      )}
       <div className="module-page">
         <PageTitle eyebrow="Reservation workspace" title="Book a new flight" />
         <div className="w-full">

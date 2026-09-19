@@ -64,17 +64,29 @@ export default function PassengersPage() {
       }
       setBookingCounts(counts);
       setPassengers(
-        backendPassengers.map((passenger: ApiPassenger) => ({
-          id: String(passenger.id ?? ""),
-          userId: String(passenger.userId ?? ""),
-          name: String(passenger.fullName ?? passenger.userName ?? "Passenger"),
-          email: String(passenger.userEmail ?? ""),
-          passportNumber: String(passenger.passportNumber ?? ""),
-          nationality: String(passenger.nationality ?? ""),
-          phone: String(passenger.phone ?? ""),
-          dateOfBirth: String(passenger.dateOfBirth ?? ""),
-          emergencyContact: String(passenger.emergencyContact ?? ""),
-        })),
+        backendPassengers.map((passenger: ApiPassenger) => {
+          const rawPassenger = passenger as ApiPassenger & {
+            user?: { id?: string | number; name?: string; email?: string };
+          };
+          return {
+            id: String(passenger.id ?? ""),
+            userId: String(passenger.userId ?? rawPassenger.user?.id ?? ""),
+            name: String(
+              passenger.fullName ??
+                passenger.userName ??
+                rawPassenger.user?.name ??
+                "Passenger",
+            ),
+            email: String(
+              passenger.userEmail ?? rawPassenger.user?.email ?? "",
+            ),
+            passportNumber: String(passenger.passportNumber ?? ""),
+            nationality: String(passenger.nationality ?? ""),
+            phone: String(passenger.phone ?? ""),
+            dateOfBirth: String(passenger.dateOfBirth ?? ""),
+            emergencyContact: String(passenger.emergencyContact ?? ""),
+          };
+        }),
       );
     } catch {
       setPassengers([]); // Clear passengers to prevent reading local demo records
@@ -115,15 +127,20 @@ export default function PassengersPage() {
 
   async function createPassenger(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const fullName = form.fullName.trim();
+    if (!fullName) {
+      setMessage("Full name is required.");
+      return;
+    }
     try {
       await createPassengerWithApi({
         userId: form.userId ? form.userId : null,
-        fullName: form.fullName,
-        passportNumber: form.passportNumber,
-        nationality: form.nationality,
-        phone: form.phone,
+        fullName,
+        passportNumber: form.passportNumber.trim(),
+        nationality: form.nationality.trim(),
+        phone: form.phone.trim(),
         dateOfBirth: form.dateOfBirth,
-        emergencyContact: form.emergencyContact,
+        emergencyContact: form.emergencyContact.trim(),
       });
       setForm(emptyForm);
       setShowForm(false);

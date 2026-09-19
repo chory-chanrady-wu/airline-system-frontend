@@ -3,12 +3,7 @@
 import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
-import {
-  displayPrice,
-  findFlight,
-  type Route,
-  type Flight,
-} from "../../../services/airline-system";
+import { displayPrice, findFlight } from "../../../services/airline-system";
 import {
   createFlightWithApi,
   deleteFlightWithApi,
@@ -18,6 +13,7 @@ import {
   normalizeApiFlight,
   updateFlightWithApi,
 } from "../../../services/api";
+import type { Flight, Route } from "../../../ustils/type";
 
 type FlightForm = {
   flightNumber: string;

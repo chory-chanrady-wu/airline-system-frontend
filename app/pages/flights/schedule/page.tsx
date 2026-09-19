@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
-import { displayPrice, type Flight } from "../../../services/airline-system";
+import { displayPrice } from "../../../services/airline-system";
 import {
   fetchAirportsFromApi,
   fetchFlightsFromApi,
   fetchFlightScheduleFromApi,
   normalizeApiFlight,
 } from "../../../services/api";
+import type { Flight } from "../../../ustils/type";
 
 export default function SchedulePage() {
   const [date, setDate] = useState("");

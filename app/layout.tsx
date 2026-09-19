@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Safty Airline",
-  description: "Safty Airline flight booking and operations system.",
+  title: "Safety Airline",
+  description: "Safesty Airline flight booking and operations system.",
   icons: {
     icon: "/assets/icon.png",
   },

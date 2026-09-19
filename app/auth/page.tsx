@@ -20,6 +20,15 @@ export default function AuthPage() {
 
     try {
       const apiUser = await loginWithApi(form.email, form.password);
+      if (
+        String(apiUser.status ?? "Active")
+          .trim()
+          .toLowerCase() === "inactive"
+      ) {
+        throw new Error(
+          "This account is inactive. Please contact an administrator.",
+        );
+      }
       const normalizedRoleName = (
         apiUser.roleName ??
         apiUser.role ??
@@ -106,7 +115,7 @@ export default function AuthPage() {
             </div>
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[3px] text-[#72e0c2]">
-                Safty
+                Safety
               </p>
               <p className="text-sm font-medium text-white/70">
                 Airline system
@@ -144,7 +153,7 @@ export default function AuthPage() {
                   <Icon name="plane" size={19} />
                 </div>
                 <span className="text-xs font-bold uppercase tracking-[2px] text-[#0e6b69]">
-                  Safty Airline
+                  Safety Airline
                 </span>
               </div>
               <p className="text-xs font-bold uppercase tracking-[2px] text-[#0e6b69]">

@@ -119,7 +119,7 @@ export function AirlineSystem({
           <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-[#42b5a4] p-1">
             <Image
               src={airplaneIcon}
-              alt="Safty Airline airplane"
+              alt="Safety Airline airplane"
               width={32}
               height={32}
               className="h-full w-full object-contain"
@@ -128,7 +128,7 @@ export function AirlineSystem({
           </span>
           <div>
             <strong className="sidebar-title block text-[15px] tracking-wide">
-              Safty Airline
+              Safety Airline
             </strong>
             <span className="sidebar-muted text-[9px] uppercase tracking-[1.5px]">
               Airline / Flight Booking System

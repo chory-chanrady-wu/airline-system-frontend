@@ -1,85 +1,14 @@
-export type Role = "Passenger" | "Admin";
-export type BookingStatus = "Confirmed" | "Waitlisted" | "Cancelled";
-
-export type User = {
-  id: string;
-  name: string;
-  email: string;
-  password: string;
-  role: Role;
-  token?: string;
-  authenticated?: boolean;
-  status?: string;
-};
-
-export type Airport = {
-  code: string;
-  city: string;
-  latitude?: number;
-  longitude?: number;
-};
-
-export type Route = {
-  id?: string | number;
-  from: string;
-  to: string;
-  distance: number;
-  durationMinutes?: number;
-};
-
-export type Flight = {
-  id: string;
-  databaseId?: string;
-  aircraftId?: string;
-  airline: string;
-  logo: string;
-  from: string;
-  to: string;
-  departure: string;
-  arrival: string;
-  departureTime: string;
-  arrivalTime: string;
-  price: number;
-  capacity: number;
-  seatsAvailable: number;
-  status?: string;
-};
-
-export type Booking = {
-  id: string;
-  passengerId: string;
-  passenger: string;
-  flightId: string;
-  route: string;
-  date: string;
-  status: BookingStatus;
-  amount: number;
-  waitlistPosition?: number;
-};
-
-export type FlightIndexes = {
-  byId: HashTable<Flight>;
-  byDeparture: AvlTree<Flight>;
-};
-
-export type Itinerary = {
-  path: string[];
-  route: string;
-  layovers: string[];
-  price: number;
-  durationMinutes: number;
-  stops: number;
-  algorithm: "Dijkstra (price)" | "Dijkstra (duration)" | "BFS";
-};
-
-type Snapshot = {
-  users: User[];
-  airports: Airport[];
-  routes: Route[];
-  flights: Flight[];
-  bookings: Booking[];
-  history: Booking[];
-};
+import type {
+  Airport,
+  Booking,
+  Flight,
+  FlightIndexes,
+  Itinerary,
+  Role,
+  Route,
+  Snapshot,
+  User,
+} from "../ustils/type";
 
 const SESSION_KEY = "aerovista-session-v1";
 const SESSION_USER_KEY = "aerovista-session-user-v1";

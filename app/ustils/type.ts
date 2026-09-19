@@ -1,3 +1,89 @@
+import type { AvlTree, HashTable } from "../services/airline-system";
+
+export type Role = "Passenger" | "Admin";
+export type BookingStatus = "Confirmed" | "Waitlisted" | "Cancelled";
+
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  role: Role;
+  token?: string;
+  authenticated?: boolean;
+  status?: string;
+};
+
+export type Airport = {
+  code: string;
+  city: string;
+  latitude?: number;
+  longitude?: number;
+};
+
+export type Route = {
+  id?: string | number;
+  from: string;
+  to: string;
+  distance: number;
+  durationMinutes?: number;
+};
+
+export type Flight = {
+  id: string;
+  flightNumber?: string;
+  databaseId?: string;
+  aircraftId?: string;
+  airline: string;
+  logo: string;
+  from: string;
+  to: string;
+  departure: string;
+  arrival: string;
+  departureTime: string;
+  arrivalTime: string;
+  price: number;
+  capacity: number;
+  seatsAvailable: number;
+  status?: string;
+};
+
+export type Booking = {
+  id: string;
+  passengerId: string;
+  passenger: string;
+  flightId: string;
+  route: string;
+  date: string;
+  status: BookingStatus;
+  amount: number;
+  waitlistPosition?: number;
+};
+
+export type FlightIndexes = {
+  byId: HashTable<Flight>;
+  byDeparture: AvlTree<Flight>;
+};
+
+export type Itinerary = {
+  path: string[];
+  route: string;
+  layovers: string[];
+  price: number;
+  durationMinutes: number;
+  stops: number;
+  algorithm: "Dijkstra (price)" | "Dijkstra (duration)" | "BFS";
+};
+
+export type Snapshot = {
+  users: User[];
+  airports: Airport[];
+  routes: Route[];
+  flights: Flight[];
+  bookings: Booking[];
+  history: Booking[];
+};
+
 export type ApiEnvelope<T> = {
   success?: boolean;
   message?: string;

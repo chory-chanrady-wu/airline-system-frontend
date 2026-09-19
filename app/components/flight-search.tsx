@@ -9,6 +9,10 @@ const fieldClass =
 const inputClass =
   "min-w-0 w-full border-0 bg-transparent text-[11px] text-[#172b3a] outline-0";
 
+function todayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export type FlightSearchValues = {
   from: string;
   to: string;
@@ -28,7 +32,7 @@ export function FlightSearch({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [passengers, setPassengers] = useState("1 passenger");
-  const [departureDate, setDepartureDate] = useState("");
+  const [departureDate, setDepartureDate] = useState(todayDate);
   const [returnDate, setReturnDate] = useState("");
   const [message, setMessage] = useState("");
   const [airports, setAirports] = useState<{ code: string; city: string }[]>(

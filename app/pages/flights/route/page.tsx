@@ -3,11 +3,7 @@
 import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
-import {
-  calculateDistance,
-  loadState,
-  type Route,
-} from "../../../services/airline-system";
+import { calculateDistance, loadState } from "../../../services/airline-system";
 import {
   createRouteWithApi,
   deleteRouteWithApi,
@@ -15,6 +11,7 @@ import {
   fetchRoutesFromApi,
   updateRouteWithApi,
 } from "../../../services/api";
+import type { Route } from "../../../ustils/type";
 
 function calculateDurationMinutes(distanceKm: number) {
   // Estimate average flight time at 570 km/h; 900 km produces 95 minutes.

@@ -6,11 +6,8 @@ import { useRouter } from "next/navigation";
 import { AirlineSystem } from "../../components/airline-system";
 import { Icon } from "../../components/icons";
 import { PageTitle } from "../../components/page-title";
-import {
-  loadState,
-  systemStats,
-  type Flight,
-} from "../../services/airline-system";
+import { loadState, systemStats } from "../../services/airline-system";
+import type { Flight } from "../../ustils/type";
 
 function flightStatus(flight: Flight) {
   if (flight.seatsAvailable === 0)

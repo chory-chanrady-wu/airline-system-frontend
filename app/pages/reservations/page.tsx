@@ -29,6 +29,7 @@ export default function ReservationsPage() {
   const [dateTo, setDateTo] = useState("");
   const [showDateRange, setShowDateRange] = useState(false);
   const [message, setMessage] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   async function refresh() {
     try {
@@ -151,9 +152,15 @@ export default function ReservationsPage() {
     }
   }
 
-  async function remove(id: string) {
+  function remove(id: string) {
+    setPendingDelete(id);
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
     try {
-      await deleteBookingWithApi(id);
+      await deleteBookingWithApi(pendingDelete);
+      setPendingDelete(null);
       await refresh();
       setMessage("Booking deleted.");
     } catch (error) {
@@ -260,6 +267,35 @@ export default function ReservationsPage() {
               Undo last action
             </button>
           </div>
+          {pendingDelete && (
+            <div className="fixed inset-0 z-40 grid place-items-center bg-[#172b3a]/20 px-5">
+              <div className="w-full max-w-90 rounded-xl border border-[#dce5e8] bg-white p-6 text-[#172b3a] shadow-2xl">
+                <p className="text-[15px] font-semibold">
+                  Delete reservation {pendingDelete}?
+                </p>
+                <p className="mt-2 text-[11px] leading-5 text-[#71838a]">
+                  This action permanently deletes the reservation and cannot be
+                  undone.
+                </p>
+                <div className="mt-6 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPendingDelete(null)}
+                    className="rounded-lg border border-[#dce5e8] px-4 py-2 text-[11px] font-bold text-[#526a73]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmDelete}
+                    className="rounded-lg bg-[#c56d61] px-4 py-2 text-[11px] font-bold text-white"
+                  >
+                    Delete reservation
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <ReservationTable
             rows={visibleRows}
             onCancel={cancel}
