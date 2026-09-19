@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100">
+  <rect width="1600" height="1100" fill="#f7fafb"/>
+  <style>
+    .title{font:700 30px Arial,sans-serif;fill:#123b4a}.box{fill:#fff;stroke:#0e6b69;stroke-width:2}.decision{fill:#fff8e8;stroke:#c58a32;stroke-width:2}.store{fill:#eef8f5;stroke:#277d75;stroke-width:2}.text{font:600 16px Arial,sans-serif;fill:#173f4a}.small{font:14px Arial,sans-serif;fill:#526a73}.label{font:700 14px Arial,sans-serif;fill:#85601f}.line{stroke:#526a73;stroke-width:2.5;fill:none}.arrow{fill:#526a73}.error{fill:#fff0ee;stroke:#c56d61;stroke-width:2}
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L10,3 L0,6 Z" class="arrow"/></marker>
+  </defs>
+  <text x="800" y="48" text-anchor="middle" class="title">Safety Airline System — Process Diagram</text>
+
+  <!-- Passenger flow -->
+  <text x="245" y="92" text-anchor="middle" class="text">Passenger Booking Process</text>
+  <rect x="140" y="120" width="210" height="62" rx="30" class="box"/><text x="245" y="157" text-anchor="middle" class="text">Start</text>
+  <rect x="140" y="230" width="210" height="72" rx="10" class="box"/><text x="245" y="260" text-anchor="middle" class="text">Enter email</text><text x="245" y="282" text-anchor="middle" class="small">and password</text>
+  <path d="M245 182 L245 230" class="line" marker-end="url(#arrow)"/>
+  <polygon points="245,345 345,410 245,475 145,410" class="decision"/><text x="245" y="405" text-anchor="middle" class="label">Account</text><text x="245" y="425" text-anchor="middle" class="label">valid?</text>
+  <path d="M245 302 L245 345" class="line" marker-end="url(#arrow)"/>
+  <rect x="20" y="380" width="100" height="60" rx="9" class="error"/><text x="70" y="406" text-anchor="middle" class="small">Show login</text><text x="70" y="424" text-anchor="middle" class="small">error</text>
+  <path d="M145 410 L120 410" class="line" marker-end="url(#arrow)"/><text x="125" y="398" text-anchor="end" class="small">No</text>
+  <polygon points="245,530 345,595 245,660 145,595" class="decision"/><text x="245" y="590" text-anchor="middle" class="label">Status</text><text x="245" y="610" text-anchor="middle" class="label">Active?</text>
+  <path d="M245 475 L245 530" class="line" marker-end="url(#arrow)"/><text x="260" y="510" class="small">Yes</text>
+  <rect x="20" y="565" width="100" height="60" rx="9" class="error"/><text x="70" y="591" text-anchor="middle" class="small">Reject login</text><text x="70" y="609" text-anchor="middle" class="small">Inactive</text>
+  <path d="M145 595 L120 595" class="line" marker-end="url(#arrow)"/><text x="125" y="583" text-anchor="end" class="small">No</text>
+  <rect x="140" y="715" width="210" height="72" rx="10" class="box"/><text x="245" y="745" text-anchor="middle" class="text">Search flights</text><text x="245" y="767" text-anchor="middle" class="small">origin, destination, date</text>
+  <path d="M245 660 L245 715" class="line" marker-end="url(#arrow)"/><text x="260" y="696" class="small">Yes</text>
+  <rect x="140" y="840" width="210" height="72" rx="10" class="store"/><text x="245" y="870" text-anchor="middle" class="text">AVL Tree search</text><text x="245" y="892" text-anchor="middle" class="small">filter by departure time</text>
+  <path d="M245 787 L245 840" class="line" marker-end="url(#arrow)"/>
+
+  <!-- Booking decision -->
+  <text x="650" y="92" text-anchor="middle" class="text">Booking and Seat Management</text>
+  <rect x="545" y="120" width="210" height="72" rx="10" class="box"/><text x="650" y="150" text-anchor="middle" class="text">Select flight</text><text x="650" y="172" text-anchor="middle" class="small">and itinerary</text>
+  <path d="M350 876 L480 876 L480 156 L545 156" class="line" marker-end="url(#arrow)"/>
+  <polygon points="650,250 750,315 650,380 550,315" class="decision"/><text x="650" y="310" text-anchor="middle" class="label">Seats</text><text x="650" y="330" text-anchor="middle" class="label">available?</text>
+  <path d="M650 192 L650 250" class="line" marker-end="url(#arrow)"/>
+  <rect x="545" y="440" width="210" height="72" rx="10" class="box"/><text x="650" y="470" text-anchor="middle" class="text">Create booking</text><text x="650" y="492" text-anchor="middle" class="small">Confirm reservation</text>
+  <path d="M650 380 L650 440" class="line" marker-end="url(#arrow)"/><text x="665" y="420" class="small">Yes</text>
+  <rect x="545" y="565" width="210" height="72" rx="10" class="store"/><text x="650" y="595" text-anchor="middle" class="text">Decrease seats</text><text x="650" y="617" text-anchor="middle" class="small">Save booking</text>
+  <path d="M650 512 L650 565" class="line" marker-end="url(#arrow)"/>
+  <rect x="545" y="690" width="210" height="72" rx="10" class="box"/><text x="650" y="720" text-anchor="middle" class="text">Display confirmation</text><text x="650" y="742" text-anchor="middle" class="small">Passenger receives ticket</text>
+  <path d="M650 637 L650 690" class="line" marker-end="url(#arrow)"/>
+  <rect x="860" y="280" width="210" height="72" rx="10" class="store"/><text x="965" y="310" text-anchor="middle" class="text">Add to Queue</text><text x="965" y="332" text-anchor="middle" class="small">Waitlist position</text>
+  <path d="M750 315 L860 315" class="line" marker-end="url(#arrow)"/><text x="805" y="303" class="small">No</text>
+  <rect x="860" y="405" width="210" height="72" rx="10" class="box"/><text x="965" y="435" text-anchor="middle" class="text">Waitlist notice</text><text x="965" y="457" text-anchor="middle" class="small">Booking pending</text>
+  <path d="M965 352 L965 405" class="line" marker-end="url(#arrow)"/>
+  <rect x="860" y="565" width="210" height="72" rx="10" class="box"/><text x="965" y="595" text-anchor="middle" class="text">Cancel booking</text><text x="965" y="617" text-anchor="middle" class="small">or seat becomes free</text>
+  <path d="M965 477 L965 565" class="line" marker-end="url(#arrow)"/>
+  <polygon points="965,690 1065,755 965,820 865,755" class="decision"/><text x="965" y="750" text-anchor="middle" class="label">Waitlist</text><text x="965" y="770" text-anchor="middle" class="label">not empty?</text>
+  <path d="M965 637 L965 690" class="line" marker-end="url(#arrow)"/>
+  <rect x="860" y="880" width="210" height="72" rx="10" class="box"/><text x="965" y="910" text-anchor="middle" class="text">Promote next passenger</text><text x="965" y="932" text-anchor="middle" class="small">Queue dequeue</text>
+  <path d="M965 820 L965 880" class="line" marker-end="url(#arrow)"/><text x="980" y="855" class="small">Yes</text>
+  <path d="M865 755 L800 755 L800 725 L755 725" class="line" marker-end="url(#arrow)"/><text x="825" y="743" text-anchor="end" class="small">No</text>
+
+  <!-- Admin flow -->
+  <text x="1330" y="92" text-anchor="middle" class="text">Administrator Process</text>
+  <rect x="1200" y="120" width="260" height="72" rx="10" class="box"/><text x="1330" y="150" text-anchor="middle" class="text">Admin login</text><text x="1330" y="172" text-anchor="middle" class="small">Check role and permissions</text>
+  <rect x="1200" y="250" width="260" height="72" rx="10" class="box"/><text x="1330" y="280" text-anchor="middle" class="text">Manage airline data</text><text x="1330" y="302" text-anchor="middle" class="small">Users, airports, flights, routes</text>
+  <path d="M1330 192 L1330 250" class="line" marker-end="url(#arrow)"/>
+  <rect x="1200" y="380" width="260" height="72" rx="10" class="store"/><text x="1330" y="410" text-anchor="middle" class="text">Update backend database</text><text x="1330" y="432" text-anchor="middle" class="small">Persist system changes</text>
+  <path d="M1330 322 L1330 380" class="line" marker-end="url(#arrow)"/>
+  <rect x="1200" y="510" width="260" height="72" rx="10" class="box"/><text x="1330" y="540" text-anchor="middle" class="text">View dashboard statistics</text><text x="1330" y="562" text-anchor="middle" class="small">Revenue, capacity, load factor</text>
+  <path d="M1330 452 L1330 510" class="line" marker-end="url(#arrow)"/>
+  <rect x="1200" y="640" width="260" height="72" rx="10" class="box"/><text x="1330" y="670" text-anchor="middle" class="text">Manage roles</text><text x="1330" y="692" text-anchor="middle" class="small">Assign permissions to users</text>
+  <path d="M1330 582 L1330 640" class="line" marker-end="url(#arrow)"/>
+  <rect x="1200" y="770" width="260" height="72" rx="10" class="box"/><text x="1330" y="800" text-anchor="middle" class="text">End</text><text x="1330" y="822" text-anchor="middle" class="small">Logout</text>
+  <path d="M1330 712 L1330 770" class="line" marker-end="url(#arrow)"/>
+
+  <text x="800" y="1030" text-anchor="middle" class="small">Green steps represent data processing or storage; yellow diamonds represent decisions.</text>
+</svg>

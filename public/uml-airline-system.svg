@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050">
+  <rect width="1600" height="1050" fill="#f7fafb"/>
+  <style>
+    .title{font:700 30px Arial,sans-serif;fill:#123b4a}.class{fill:#fff;stroke:#0e6b69;stroke-width:2}.ds{fill:#eef8f5;stroke:#277d75;stroke-width:2}.head{fill:#0e6b69}.dshead{fill:#277d75}.label{font:700 16px Arial,sans-serif;fill:#fff}.text{font:14px Arial,sans-serif;fill:#173f4a}.small{font:13px Arial,sans-serif;fill:#526a73}.line{stroke:#526a73;stroke-width:2;fill:none}.arrow{fill:#526a73}
+  </style>
+  <text x="800" y="48" text-anchor="middle" class="title">Safety Airline System — UML Class Diagram</text>
+
+  <!-- Users -->
+  <rect x="70" y="110" width="270" height="170" rx="8" class="class"/>
+  <rect x="70" y="110" width="270" height="42" rx="8" class="head"/>
+  <text x="205" y="138" text-anchor="middle" class="label">User</text>
+  <text x="88" y="178" class="text">+ id: string</text><text x="88" y="201" class="text">+ name: string</text><text x="88" y="224" class="text">+ email: string</text><text x="88" y="247" class="text">+ status: string</text>
+
+  <rect x="70" y="350" width="270" height="145" rx="8" class="class"/>
+  <rect x="70" y="350" width="270" height="42" rx="8" class="head"/>
+  <text x="205" y="378" text-anchor="middle" class="label">Passenger</text>
+  <text x="88" y="420" class="text">+ searchFlights()</text><text x="88" y="443" class="text">+ bookFlight()</text><text x="88" y="466" class="text">+ cancelBooking()</text>
+
+  <rect x="70" y="565" width="270" height="145" rx="8" class="class"/>
+  <rect x="70" y="565" width="270" height="42" rx="8" class="head"/>
+  <text x="205" y="593" text-anchor="middle" class="label">Admin</text>
+  <text x="88" y="635" class="text">+ manageUsers()</text><text x="88" y="658" class="text">+ manageFlights()</text><text x="88" y="681" class="text">+ viewStatistics()</text>
+
+  <!-- Core entities -->
+  <rect x="430" y="110" width="300" height="215" rx="8" class="class"/>
+  <rect x="430" y="110" width="300" height="42" rx="8" class="head"/>
+  <text x="580" y="138" text-anchor="middle" class="label">Flight</text>
+  <text x="448" y="178" class="text">+ id: string</text><text x="448" y="201" class="text">+ airline: string</text><text x="448" y="224" class="text">+ from / to: string</text><text x="448" y="247" class="text">+ departureTime: string</text><text x="448" y="270" class="text">+ price: number</text><text x="448" y="293" class="text">+ seatsAvailable: number</text>
+
+  <rect x="850" y="110" width="290" height="170" rx="8" class="class"/>
+  <rect x="850" y="110" width="290" height="42" rx="8" class="head"/>
+  <text x="995" y="138" text-anchor="middle" class="label">Booking</text>
+  <text x="868" y="178" class="text">+ id: string</text><text x="868" y="201" class="text">+ passengerId: string</text><text x="868" y="224" class="text">+ flightId: string</text><text x="868" y="247" class="text">+ status: BookingStatus</text><text x="868" y="270" class="text">+ amount: number</text>
+
+  <rect x="430" y="405" width="300" height="170" rx="8" class="class"/>
+  <rect x="430" y="405" width="300" height="42" rx="8" class="head"/>
+  <text x="580" y="433" text-anchor="middle" class="label">Airport</text>
+  <text x="448" y="473" class="text">+ code: string</text><text x="448" y="496" class="text">+ city: string</text><text x="448" y="519" class="text">+ latitude: number</text><text x="448" y="542" class="text">+ longitude: number</text>
+
+  <rect x="850" y="405" width="290" height="170" rx="8" class="class"/>
+  <rect x="850" y="405" width="290" height="42" rx="8" class="head"/>
+  <text x="995" y="433" text-anchor="middle" class="label">Route</text>
+  <text x="868" y="473" class="text">+ from: string</text><text x="868" y="496" class="text">+ to: string</text><text x="868" y="519" class="text">+ distance: number</text><text x="868" y="542" class="text">+ durationMinutes: number</text>
+
+  <!-- Data structures -->
+  <rect x="1220" y="110" width="300" height="145" rx="8" class="ds"/>
+  <rect x="1220" y="110" width="300" height="42" rx="8" class="dshead"/>
+  <text x="1370" y="138" text-anchor="middle" class="label">HashTable</text>
+  <text x="1238" y="180" class="text">+ set(key, value)</text><text x="1238" y="203" class="text">+ get(key)</text><text x="1238" y="226" class="text">+ delete(key)</text>
+
+  <rect x="1220" y="320" width="300" height="145" rx="8" class="ds"/>
+  <rect x="1220" y="320" width="300" height="42" rx="8" class="dshead"/>
+  <text x="1370" y="348" text-anchor="middle" class="label">AvlTree</text>
+  <text x="1238" y="390" class="text">+ insert(value, key)</text><text x="1238" y="413" class="text">+ range(min, max)</text><text x="1238" y="436" class="small">Searches flights by departure time</text>
+
+  <rect x="1220" y="530" width="300" height="145" rx="8" class="ds"/>
+  <rect x="1220" y="530" width="300" height="42" rx="8" class="dshead"/>
+  <text x="1370" y="558" text-anchor="middle" class="label">RouteGraph</text>
+  <text x="1238" y="600" class="text">+ addEdge(from, to, weight)</text><text x="1238" y="623" class="text">+ shortestPath()</text><text x="1238" y="646" class="text">+ fewestStops()</text>
+
+  <rect x="1220" y="740" width="140" height="125" rx="8" class="ds"/>
+  <rect x="1220" y="740" width="140" height="42" rx="8" class="dshead"/>
+  <text x="1290" y="768" text-anchor="middle" class="label">Queue</text><text x="1238" y="810" class="text">+ enqueue()</text><text x="1238" y="833" class="text">+ dequeue()</text>
+  <rect x="1380" y="740" width="140" height="125" rx="8" class="ds"/>
+  <rect x="1380" y="740" width="140" height="42" rx="8" class="dshead"/>
+  <text x="1450" y="768" text-anchor="middle" class="label">Stack</text><text x="1398" y="810" class="text">+ push()</text><text x="1398" y="833" class="text">+ pop()</text>
+
+  <!-- Relationships -->
+  <path d="M205 280 L205 350" class="line"/><path d="M195 340 L205 350 L215 340" class="arrow"/>
+  <path d="M205 495 L205 565" class="line"/><path d="M195 555 L205 565 L215 555" class="arrow"/>
+  <path d="M340 195 L430 195" class="line"/><text x="355" y="185" class="small">creates</text>
+  <path d="M730 195 L850 195" class="line"/><text x="755" y="185" class="small">reserved by</text>
+  <path d="M580 325 L580 405" class="line"/><text x="592" y="365" class="small">uses</text>
+  <path d="M730 490 L850 490" class="line"/><text x="755" y="480" class="small">connects</text>
+  <path d="M730 245 L900 405" class="line"/><text x="760" y="300" class="small">departure / arrival</text>
+  <path d="M730 150 L1220 180" class="line"/><path d="M730 270 L1220 390" class="line"/>
+  <path d="M1140 490 L1220 600" class="line"/>
+  <path d="M1140 195 L1220 800" class="line"/>
+  <path d="M995 280 L1290 740" class="line"/>
+  <path d="M995 280 L1450 740" class="line"/>
+
+  <text x="800" y="995" text-anchor="middle" class="small">Solid lines show relationships; green classes represent data structures used by the airline system.</text>
+</svg>
