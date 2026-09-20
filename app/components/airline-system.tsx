@@ -13,6 +13,7 @@ import {
   logout as clearLocalSession,
 } from "../services/airline-system";
 import { logoutWithApi } from "../services/auth";
+import { canRead, moduleForPath } from "../services/permissions";
 
 type ThemePreference = "light" | "dark" | "system";
 const menu: {
@@ -89,6 +90,16 @@ export function AirlineSystem({
     return () => mediaQuery.removeEventListener("change", applyTheme);
   }, [theme]);
 
+  const currentModule = moduleForPath(pathname);
+  const canAccessCurrentPage =
+    !session || !currentModule || canRead(session, currentModule);
+
+  useEffect(() => {
+    if (session && currentModule && !canRead(session, currentModule)) {
+      router.replace("/pages/dashboard");
+    }
+  }, [currentModule, router, session]);
+
   function changeTheme(nextTheme: ThemePreference) {
     setTheme(nextTheme);
     window.localStorage.setItem("aerovista-theme", nextTheme);
@@ -140,75 +151,117 @@ export function AirlineSystem({
             Workspace
           </p>
           <nav className="mt-3 grid gap-1">
-            {menu.map((item) => (
-              <div key={item.label}>
-                <div className="flex items-center">
-                  <Link
-                    href={item.href}
-                    className={`sidebar-link flex flex-1 items-center gap-3 rounded-lg px-3 py-3 text-left text-[12px] font-semibold transition ${activeModule === item.label || (item.label === "Settings" && (pathname === "/pages/settings/user" || pathname === "/pages/settings/roles")) ? "sidebar-link-active" : ""}`}
-                  >
-                    <Icon name={item.icon} size={17} />
-                    {item.label}
-                  </Link>
+            {menu
+              .filter((item) => {
+                if (!session) return true;
+                if (item.label === "Dashboard")
+                  return canRead(session, "DASHBOARD");
+                if (item.label === "Book flight")
+                  return canRead(session, "BOOKINGS");
+                if (item.label === "Reservations")
+                  return canRead(session, "BOOKINGS");
+                if (item.label === "Passengers")
+                  return canRead(session, "PASSENGERS");
+                if (item.label === "Flight Management") {
+                  return ["FLIGHTS", "AIRCRAFTS", "AIRPORTS", "ROUTES"].some(
+                    (module) =>
+                      canRead(
+                        session,
+                        module as
+                          | "FLIGHTS"
+                          | "AIRCRAFTS"
+                          | "AIRPORTS"
+                          | "ROUTES",
+                      ),
+                  );
+                }
+                return canRead(session, "USERS") || canRead(session, "ROLES");
+              })
+              .map((item) => (
+                <div key={item.label}>
+                  <div className="flex items-center">
+                    <Link
+                      href={item.href}
+                      className={`sidebar-link flex flex-1 items-center gap-3 rounded-lg px-3 py-3 text-left text-[12px] font-semibold transition ${activeModule === item.label || (item.label === "Settings" && (pathname === "/pages/settings/user" || pathname === "/pages/settings/roles")) ? "sidebar-link-active" : ""}`}
+                    >
+                      <Icon name={item.icon} size={17} />
+                      {item.label}
+                    </Link>
+                  </div>
+                  {item.label === "Flight Management" && (
+                    <div className="sidebar-subnav ml-5 grid border-l pl-3">
+                      {(!session || canRead(session, "AIRCRAFTS")) && (
+                        <Link
+                          href="/pages/flights/aircraft"
+                          className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/aircraft" ? "sidebar-subnav-link-active" : ""}`}
+                        >
+                          Aircraft
+                        </Link>
+                      )}
+                      {(!session || canRead(session, "AIRPORTS")) && (
+                        <Link
+                          href="/pages/flights/airport"
+                          className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/airport" ? "sidebar-subnav-link-active" : ""}`}
+                        >
+                          Airport
+                        </Link>
+                      )}
+                      {(!session || canRead(session, "ROUTES")) && (
+                        <Link
+                          href="/pages/flights/route"
+                          className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/route" ? "sidebar-subnav-link-active" : ""}`}
+                        >
+                          Route
+                        </Link>
+                      )}
+                      {(!session || canRead(session, "FLIGHTS")) && (
+                        <Link
+                          href="/pages/flights/flight-list"
+                          className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/flight-list" ? "sidebar-subnav-link-active" : ""}`}
+                        >
+                          Flight List
+                        </Link>
+                      )}
+                      {(!session || canRead(session, "FLIGHTS")) && (
+                        <Link
+                          href="/pages/flights/schedule"
+                          className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/schedule" ? "sidebar-subnav-link-active" : ""}`}
+                        >
+                          Schedule
+                        </Link>
+                      )}
+                      {(!session || canRead(session, "FLIGHTS")) && (
+                        <Link
+                          href="/pages/flights/radar"
+                          className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/radar" ? "sidebar-subnav-link-active" : ""}`}
+                        >
+                          Flight Radar
+                        </Link>
+                      )}
+                    </div>
+                  )}
+                  {item.label === "Settings" && (
+                    <div className="sidebar-subnav ml-5 grid border-l pl-3">
+                      {(!session || canRead(session, "USERS")) && (
+                        <Link
+                          href="/pages/settings/user"
+                          className={`sidebar-subnav-link px-3 py-2 text-[11px] ${activeModule === "User" || pathname === "/pages/settings/user" ? "sidebar-subnav-link-active" : ""}`}
+                        >
+                          User
+                        </Link>
+                      )}
+                      {(!session || canRead(session, "ROLES")) && (
+                        <Link
+                          href="/pages/settings/roles"
+                          className={`sidebar-subnav-link px-3 py-2 text-[11px] ${activeModule === "Roles" || pathname === "/pages/settings/roles" ? "sidebar-subnav-link-active" : ""}`}
+                        >
+                          Roles
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {item.label === "Flight Management" && (
-                  <div className="sidebar-subnav ml-5 grid border-l pl-3">
-                    <Link
-                      href="/pages/flights/aircraft"
-                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/aircraft" ? "sidebar-subnav-link-active" : ""}`}
-                    >
-                      Aircraft
-                    </Link>
-                    <Link
-                      href="/pages/flights/airport"
-                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/airport" ? "sidebar-subnav-link-active" : ""}`}
-                    >
-                      Airport
-                    </Link>
-                    <Link
-                      href="/pages/flights/route"
-                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/route" ? "sidebar-subnav-link-active" : ""}`}
-                    >
-                      Route
-                    </Link>
-                    <Link
-                      href="/pages/flights/flight-list"
-                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/flight-list" ? "sidebar-subnav-link-active" : ""}`}
-                    >
-                      Flight List
-                    </Link>
-                    <Link
-                      href="/pages/flights/schedule"
-                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/schedule" ? "sidebar-subnav-link-active" : ""}`}
-                    >
-                      Schedule
-                    </Link>
-                    <Link
-                      href="/pages/flights/radar"
-                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${pathname === "/pages/flights/radar" ? "sidebar-subnav-link-active" : ""}`}
-                    >
-                      Flight Radar
-                    </Link>
-                  </div>
-                )}
-                {item.label === "Settings" && (
-                  <div className="sidebar-subnav ml-5 grid border-l pl-3">
-                    <Link
-                      href="/pages/settings/user"
-                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${activeModule === "User" || pathname === "/pages/settings/user" ? "sidebar-subnav-link-active" : ""}`}
-                    >
-                      User
-                    </Link>
-                    <Link
-                      href="/pages/settings/roles"
-                      className={`sidebar-subnav-link px-3 py-2 text-[11px] ${activeModule === "Roles" || pathname === "/pages/settings/roles" ? "sidebar-subnav-link-active" : ""}`}
-                    >
-                      Roles
-                    </Link>
-                  </div>
-                )}
-              </div>
-            ))}
+              ))}
           </nav>
         </div>
         <div className="sidebar-divider mt-auto border-t p-4">
@@ -373,7 +426,13 @@ export function AirlineSystem({
               <Icon name="check" size={16} /> {notice}
             </div>
           )}
-          {children}
+          {canAccessCurrentPage ? (
+            children
+          ) : (
+            <div className="module-page rounded-xl border border-[#dce5e8] bg-white p-6 text-[12px] text-[#526a73]">
+              You do not have permission to view this module.
+            </div>
+          )}
         </main>
       </div>
     </div>

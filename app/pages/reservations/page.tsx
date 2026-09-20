@@ -6,6 +6,7 @@ import { AirlineSystem } from "../../components/airline-system";
 import { Icon } from "../../components/icons";
 import { PageTitle } from "../../components/page-title";
 import { ReservationTable } from "../../components/reservation-table";
+import { usePermissions } from "../../hooks/use-permissions";
 import { displayPrice, loadState } from "../../services/airline-system";
 import {
   cancelBookingWithApi,
@@ -20,6 +21,7 @@ import {
 
 export default function ReservationsPage() {
   const router = useRouter();
+  const { canWrite } = usePermissions();
   const [rows, setRows] = useState<ReturnType<typeof loadState>["bookings"]>(
     [],
   );
@@ -28,6 +30,10 @@ export default function ReservationsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [showDateRange, setShowDateRange] = useState(false);
+  const [sortBy, setSortBy] = useState<
+    "date" | "passenger" | "id" | "status" | "amount"
+  >("date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [message, setMessage] = useState("");
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
@@ -58,11 +64,32 @@ export default function ReservationsPage() {
           ];
         }),
       );
+      const flightById = new Map(
+        backendFlights.map((flight) => {
+          const normalized = normalizeApiFlight(flight);
+          return [String(flight.id ?? flight.flightId ?? ""), normalized];
+        }),
+      );
       if (backendBookings.length > 0) {
         setRows(
           backendBookings.map((booking) => {
             const passengerId = String(booking.passengerId ?? "");
             const flightId = String(booking.flightId ?? "");
+            const linkedFlight = flightById.get(flightId);
+            const departureTime = String(
+              booking.departureTime ?? linkedFlight?.departureTime ?? "",
+            );
+            const arrivalTime = String(
+              booking.arrivalTime ?? linkedFlight?.arrivalTime ?? "",
+            );
+            const departure = new Date(departureTime).getTime();
+            const arrival = new Date(arrivalTime).getTime();
+            const calculatedDuration =
+              Number.isFinite(departure) &&
+              Number.isFinite(arrival) &&
+              arrival > departure
+                ? (arrival - departure) / (1000 * 60)
+                : 0;
             return {
               id: String(booking.id ?? booking.bookingId ?? ""),
               passengerId,
@@ -80,12 +107,21 @@ export default function ReservationsPage() {
                   (booking as Record<string, unknown>).route ??
                   "",
               ),
-              date: String(
-                booking.departureTime ??
+              date:
+                departureTime ||
+                String(
                   (booking as Record<string, unknown>).bookedAt ??
-                  (booking as Record<string, unknown>).date ??
-                  new Date().toISOString().slice(0, 10),
-              ).slice(0, 10),
+                    (booking as Record<string, unknown>).date ??
+                    new Date().toISOString().slice(0, 10),
+                ),
+              departureTime,
+              arrivalTime,
+              durationMinutes:
+                Number(
+                  (booking as Record<string, unknown>).durationMinutes ?? 0,
+                ) ||
+                calculatedDuration ||
+                undefined,
               status:
                 (booking.status as "Confirmed" | "Waitlisted" | "Cancelled") ??
                 "Confirmed",
@@ -117,8 +153,21 @@ export default function ReservationsPage() {
         .includes(query.toLowerCase()),
     )
     .filter((row) => status === "All statuses" || row.status === status)
-    .filter((row) => !dateFrom || row.date >= dateFrom)
-    .filter((row) => !dateTo || row.date <= dateTo)
+    .filter((row) => !dateFrom || row.date.slice(0, 10) >= dateFrom)
+    .filter((row) => !dateTo || row.date.slice(0, 10) <= dateTo)
+    .sort((left, right) => {
+      let comparison = 0;
+      if (sortBy === "amount") {
+        comparison = left.amount - right.amount;
+      } else {
+        comparison = String(left[sortBy]).localeCompare(
+          String(right[sortBy]),
+          undefined,
+          { numeric: true, sensitivity: "base" },
+        );
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    })
     .map((row) => ({
       ...row,
       date: row.date,
@@ -126,6 +175,10 @@ export default function ReservationsPage() {
     }));
 
   async function cancel(id: string) {
+    if (!canWrite("BOOKINGS")) {
+      setMessage("You do not have permission to update bookings.");
+      return;
+    }
     try {
       await cancelBookingWithApi(id);
       await refresh();
@@ -141,6 +194,10 @@ export default function ReservationsPage() {
   }
 
   async function undo(id: string) {
+    if (!canWrite("BOOKINGS")) {
+      setMessage("You do not have permission to update bookings.");
+      return;
+    }
     try {
       await undoBookingCancellationWithApi(id);
       await refresh();
@@ -158,6 +215,10 @@ export default function ReservationsPage() {
 
   async function confirmDelete() {
     if (!pendingDelete) return;
+    if (!canWrite("BOOKINGS")) {
+      setMessage("You do not have permission to delete bookings.");
+      return;
+    }
     try {
       await deleteBookingWithApi(pendingDelete);
       setPendingDelete(null);
@@ -171,6 +232,10 @@ export default function ReservationsPage() {
   }
 
   async function updateStatus(id: string, nextStatus: string) {
+    if (!canWrite("BOOKINGS")) {
+      setMessage("You do not have permission to update bookings.");
+      return;
+    }
     try {
       await updateBookingWithApi(id, { status: nextStatus });
       await refresh();
@@ -188,8 +253,12 @@ export default function ReservationsPage() {
         <PageTitle
           eyebrow="Booking management"
           title="Reservations"
-          action="New reservation"
-          onAction={() => router.push("/pages/book-flight")}
+          action={canWrite("BOOKINGS") ? "New reservation" : undefined}
+          onAction={
+            canWrite("BOOKINGS")
+              ? () => router.push("/pages/book-flight")
+              : undefined
+          }
         />
         <div className="w-full">
           <div className="mb-4 flex flex-wrap gap-2">
@@ -212,6 +281,39 @@ export default function ReservationsPage() {
               <option>Pending</option>
               <option>Cancelled</option>
             </select>
+            <select
+              value={sortBy}
+              onChange={(event) =>
+                setSortBy(
+                  event.target.value as
+                    | "date"
+                    | "passenger"
+                    | "id"
+                    | "status"
+                    | "amount",
+                )
+              }
+              className="rounded-lg border border-[#dce5e8] bg-white px-3 text-[11px] text-[#61737d]"
+              aria-label="Sort reservations by"
+            >
+              <option value="date">Sort: departure</option>
+              <option value="id">Sort: booking ID</option>
+              <option value="passenger">Sort: passenger</option>
+              <option value="status">Sort: status</option>
+              <option value="amount">Sort: amount</option>
+            </select>
+            <button
+              type="button"
+              onClick={() =>
+                setSortDirection((direction) =>
+                  direction === "asc" ? "desc" : "asc",
+                )
+              }
+              className="rounded-lg border border-[#dce5e8] bg-white px-3 text-[11px] font-semibold text-[#526a73]"
+              aria-label={`Sort ${sortDirection === "asc" ? "descending" : "ascending"}`}
+            >
+              {sortDirection === "asc" ? "↑ Ascending" : "↓ Descending"}
+            </button>
             <button
               type="button"
               onClick={() => setShowDateRange((open) => !open)}
@@ -298,10 +400,10 @@ export default function ReservationsPage() {
           )}
           <ReservationTable
             rows={visibleRows}
-            onCancel={cancel}
-            onDelete={remove}
-            onUndo={undo}
-            onUpdate={updateStatus}
+            onCancel={canWrite("BOOKINGS") ? cancel : undefined}
+            onDelete={canWrite("BOOKINGS") ? remove : undefined}
+            onUndo={canWrite("BOOKINGS") ? undo : undefined}
+            onUpdate={canWrite("BOOKINGS") ? updateStatus : undefined}
           />
         </div>
       </div>

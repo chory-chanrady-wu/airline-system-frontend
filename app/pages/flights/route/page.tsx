@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
+import { usePermissions } from "../../../hooks/use-permissions";
 import { useRealtimeRefresh } from "../../../hooks/use-realtime-refresh";
 import { calculateDistance, loadState } from "../../../services/airline-system";
 import {
@@ -29,6 +30,7 @@ function formatDuration(durationMinutes: number) {
 }
 
 export default function RoutePage() {
+  const { canWrite } = usePermissions();
   const [routes, setRoutes] = useState<Route[]>([]);
   const [airports, setAirports] = useState<
     ReturnType<typeof loadState>["airports"]
@@ -122,6 +124,10 @@ export default function RoutePage() {
   useRealtimeRefresh("routes", refresh);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canWrite("ROUTES")) {
+      setMessage("You do not have permission to manage routes.");
+      return;
+    }
     const routeDistance = calculatedDistance ?? form.distance;
     const durationMinutes = calculateDurationMinutes(routeDistance);
     if (!form.from || !form.to || routeDistance <= 0) {
@@ -179,6 +185,10 @@ export default function RoutePage() {
 
   async function confirmDelete() {
     if (!pendingDelete) return;
+    if (!canWrite("ROUTES")) {
+      setMessage("You do not have permission to delete routes.");
+      return;
+    }
     const route = pendingDelete;
     try {
       await deleteRouteWithApi(route.from, route.to);
@@ -206,8 +216,20 @@ export default function RoutePage() {
         <PageTitle
           eyebrow="Flight Management / Route"
           title="Route management"
-          action={showForm ? "Close form" : "New route"}
-          onAction={showForm ? cancelEditing : openNewRouteForm}
+          action={
+            canWrite("ROUTES")
+              ? showForm
+                ? "Close form"
+                : "New route"
+              : undefined
+          }
+          onAction={
+            canWrite("ROUTES")
+              ? showForm
+                ? cancelEditing
+                : openNewRouteForm
+              : undefined
+          }
         />
         {showForm && (
           <form
@@ -340,26 +362,28 @@ export default function RoutePage() {
                     : calculateDurationMinutes(route.distance),
                 )}
               </span>
-              <span className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(route);
-                    setShowForm(true);
-                    setForm(route);
-                  }}
-                  className="font-semibold text-[#0e6b69]"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPendingDelete(route)}
-                  className="font-semibold text-[#c56d61]"
-                >
-                  Remove
-                </button>
-              </span>
+              {canWrite("ROUTES") && (
+                <span className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditing(route);
+                      setShowForm(true);
+                      setForm(route);
+                    }}
+                    className="font-semibold text-[#0e6b69]"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingDelete(route)}
+                    className="font-semibold text-[#c56d61]"
+                  >
+                    Remove
+                  </button>
+                </span>
+              )}
             </div>
           ))}
         </div>

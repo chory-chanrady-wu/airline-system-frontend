@@ -5,7 +5,20 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Icon } from "../components/icons";
 import airplaneIcon from "../assets/icon.png";
-import { loginWithApi } from "../services/api";
+import {
+  fetchRoleByIdFromApi,
+  fetchRolesFromApi,
+  loginWithApi,
+} from "../services/api";
+import type { ApiRole } from "../ustils/type";
+
+function extractPermissions(role: ApiRole | null | undefined) {
+  return Array.isArray(role?.permissions)
+    ? role.permissions.filter(
+        (permission): permission is string => typeof permission === "string",
+      )
+    : [];
+}
 
 export default function AuthPage() {
   const router = useRouter();
@@ -29,23 +42,52 @@ export default function AuthPage() {
           "This account is inactive. Please contact an administrator.",
         );
       }
-      const normalizedRoleName = (
-        apiUser.roleName ??
-        apiUser.role ??
-        "passenger"
-      ).toLowerCase();
+      const roleNameFromApi = String(
+        apiUser.roleName ?? apiUser.role ?? "Passenger",
+      );
+      const normalizedRoleName = roleNameFromApi.toLowerCase();
       const role =
         normalizedRoleName === "admin" || normalizedRoleName === "super_admin"
           ? "Admin"
-          : "Passenger";
+          : roleNameFromApi;
+      let permissions = apiUser.permissions ?? [];
+      if (!permissions.length) {
+        try {
+          let matchedRole: ApiRole | null = null;
+          if (apiUser.roleId !== undefined) {
+            const roleResult = await fetchRoleByIdFromApi(apiUser.roleId);
+            matchedRole =
+              roleResult && typeof roleResult === "object"
+                ? ((("data" in roleResult
+                    ? roleResult.data
+                    : roleResult) as ApiRole) ?? null)
+                : null;
+          }
+          // Fall back to matching the role by name so custom roles without a
+          // resolvable roleId still receive their configured permissions.
+          if (!extractPermissions(matchedRole).length) {
+            const roles = await fetchRolesFromApi();
+            matchedRole =
+              roles.find(
+                (candidate) =>
+                  String(candidate.name ?? "").toLowerCase() ===
+                  normalizedRoleName,
+              ) ?? null;
+          }
+          permissions = extractPermissions(matchedRole);
+        } catch {
+          // The built-in role fallback keeps older API responses usable.
+        }
+      }
       const user = {
         id: String(apiUser.id ?? ""),
         name: apiUser.name ?? "",
         email: apiUser.email ?? form.email,
-        role: role as "Passenger" | "Admin",
+        role,
         token: apiUser.token,
         authenticated: apiUser.authenticated ?? Boolean(apiUser.token),
         status: apiUser.status ?? "Active",
+        permissions,
       };
 
       if (typeof window !== "undefined") {
@@ -57,6 +99,7 @@ export default function AuthPage() {
             password: undefined,
           }),
         );
+        window.dispatchEvent(new Event("aerovista-session-updated"));
       }
 
       router.push(

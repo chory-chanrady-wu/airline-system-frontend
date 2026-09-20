@@ -1,6 +1,24 @@
 import type { AvlTree, HashTable } from "../services/airline-system";
 
-export type Role = "Passenger" | "Admin";
+export type Role = string;
+export type Permission =
+  | "DASHBOARD_READ"
+  | "BOOKINGS_READ"
+  | "BOOKINGS_WRITE"
+  | "PASSENGERS_READ"
+  | "PASSENGERS_WRITE"
+  | "FLIGHTS_READ"
+  | "FLIGHTS_WRITE"
+  | "AIRCRAFTS_READ"
+  | "AIRCRAFTS_WRITE"
+  | "AIRPORTS_READ"
+  | "AIRPORTS_WRITE"
+  | "ROUTES_READ"
+  | "ROUTES_WRITE"
+  | "USERS_READ"
+  | "USERS_WRITE"
+  | "ROLES_READ"
+  | "ROLES_WRITE";
 export type BookingStatus = "Confirmed" | "Waitlisted" | "Cancelled";
 
 export type User = {
@@ -9,6 +27,7 @@ export type User = {
   email: string;
   password: string;
   role: Role;
+  permissions?: string[];
   token?: string;
   authenticated?: boolean;
   status?: string;
@@ -98,6 +117,7 @@ export type ApiUser = {
   roleId?: string | number;
   role?: string;
   roleName?: string;
+  permissions?: string[];
   status?: string;
   createdAt?: string;
   updatedAt?: string;

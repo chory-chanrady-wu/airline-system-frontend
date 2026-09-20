@@ -271,6 +271,7 @@ export function getSession() {
       token?: string;
       authenticated?: boolean;
       status?: string;
+      permissions?: string[];
     };
     const session =
       parsed.user && typeof parsed.user === "object" ? parsed.user : parsed;
@@ -304,6 +305,12 @@ export function getSession() {
         parsed.authenticated ??
         Boolean(safeSession.token || parsed.token),
       status: safeSession.status ?? parsed.status ?? "Active",
+      permissions: Array.isArray(safeSession.permissions)
+        ? safeSession.permissions.filter(
+            (permission): permission is string =>
+              typeof permission === "string",
+          )
+        : [],
     } as User;
   } catch {
     return null;

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../components/airline-system";
 import { Icon } from "../../components/icons";
 import { PageTitle } from "../../components/page-title";
+import { usePermissions } from "../../hooks/use-permissions";
 import {
   createPassengerWithApi,
   deletePassengerWithApi,
@@ -36,6 +37,7 @@ const emptyForm = {
 };
 
 export default function PassengersPage() {
+  const { canWrite } = usePermissions();
   const [passengers, setPassengers] = useState<PassengerRow[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [bookingCounts, setBookingCounts] = useState<Record<string, number>>(
@@ -127,6 +129,10 @@ export default function PassengersPage() {
 
   async function createPassenger(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canWrite("PASSENGERS")) {
+      setMessage("You do not have permission to manage passengers.");
+      return;
+    }
     const fullName = form.fullName.trim();
     if (!fullName) {
       setMessage("Full name is required.");
@@ -156,6 +162,10 @@ export default function PassengersPage() {
 
   async function confirmDelete() {
     if (!pendingDelete) return;
+    if (!canWrite("PASSENGERS")) {
+      setMessage("You do not have permission to delete passengers.");
+      return;
+    }
 
     try {
       await deletePassengerWithApi(pendingDelete.id);
@@ -176,8 +186,18 @@ export default function PassengersPage() {
         <PageTitle
           eyebrow="Customer records"
           title="Passengers"
-          action={showForm ? "Close form" : "Add passenger"}
-          onAction={() => setShowForm((open) => !open)}
+          action={
+            canWrite("PASSENGERS")
+              ? showForm
+                ? "Close form"
+                : "Add passenger"
+              : undefined
+          }
+          onAction={
+            canWrite("PASSENGERS")
+              ? () => setShowForm((open) => !open)
+              : undefined
+          }
         />
         {pendingDelete && (
           <div className="fixed inset-0 z-40 grid place-items-center bg-[#172b3a]/20 px-5">

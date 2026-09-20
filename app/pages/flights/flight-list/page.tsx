@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
+import { usePermissions } from "../../../hooks/use-permissions";
 import { displayPrice, findFlight } from "../../../services/airline-system";
 import {
   createFlightWithApi,
@@ -42,6 +43,7 @@ const emptyForm: FlightForm = {
 };
 
 export default function FlightListPage() {
+  const { canWrite } = usePermissions();
   const [flights, setFlights] = useState<Flight[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [aircrafts, setAircrafts] = useState<
@@ -189,6 +191,16 @@ export default function FlightListPage() {
     return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
   }
 
+  function getFlightDuration(flight: Flight) {
+    const departure = new Date(flight.departureTime).getTime();
+    const arrival = new Date(flight.arrivalTime).getTime();
+    if (Number.isFinite(departure) && Number.isFinite(arrival)) {
+      const durationMinutes = (arrival - departure) / (1000 * 60);
+      if (durationMinutes > 0) return durationMinutes;
+    }
+    return getRouteDuration(flight.from, flight.to);
+  }
+
   function calculateArrivalTime(
     departureDateTime: string,
     from: string,
@@ -225,6 +237,10 @@ export default function FlightListPage() {
 
   async function saveFlight(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canWrite("FLIGHTS")) {
+      setMessage("You do not have permission to manage flights.");
+      return;
+    }
     if (
       !form.fromAirportCode ||
       !form.toAirportCode ||
@@ -286,6 +302,10 @@ export default function FlightListPage() {
 
   async function confirmDelete() {
     if (!pendingDelete) return;
+    if (!canWrite("FLIGHTS")) {
+      setMessage("You do not have permission to delete flights.");
+      return;
+    }
     try {
       await deleteFlightWithApi(pendingDelete.databaseId || pendingDelete.id);
       await refresh();
@@ -304,12 +324,22 @@ export default function FlightListPage() {
         <PageTitle
           eyebrow="Flight Management / Flight List"
           title="Flight list"
-          action={showForm ? "Close form" : "Add flight"}
-          onAction={() => {
-            setShowForm((open) => !open);
-            setEditingId(null);
-            setForm(emptyForm);
-          }}
+          action={
+            canWrite("FLIGHTS")
+              ? showForm
+                ? "Close form"
+                : "Add flight"
+              : undefined
+          }
+          onAction={
+            canWrite("FLIGHTS")
+              ? () => {
+                  setShowForm((open) => !open);
+                  setEditingId(null);
+                  setForm(emptyForm);
+                }
+              : undefined
+          }
         />
         {showForm && (
           <form
@@ -597,11 +627,12 @@ export default function FlightListPage() {
         </div>
         <div className="mt-6 overflow-x-auto rounded-xl border border-[#dce5e8] bg-white">
           <div className="min-w-275">
-            <div className="grid grid-cols-[130px_minmax(180px,1fr)_190px_190px_100px_130px_110px_130px] bg-[#f7fafb] px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-[#839198]">
+            <div className="grid grid-cols-[130px_minmax(180px,1fr)_190px_190px_120px_100px_130px_110px_130px] bg-[#f7fafb] px-5 py-3 text-[10px] font-bold uppercase tracking-wide text-[#839198]">
               <span>Flight number</span>
               <span>Route</span>
               <span>Departure</span>
               <span>Arrival</span>
+              <span>Duration</span>
               <span>Price</span>
               <span>Seats</span>
               <span>Status</span>
@@ -610,7 +641,7 @@ export default function FlightListPage() {
             {visible.map((flight) => (
               <div
                 key={flight.id}
-                className="grid grid-cols-[130px_minmax(180px,1fr)_190px_190px_100px_130px_110px_130px] items-center border-t border-[#eef2f3] px-5 py-4 text-[11px]"
+                className="grid grid-cols-[130px_minmax(180px,1fr)_190px_190px_120px_100px_130px_110px_130px] items-center border-t border-[#eef2f3] px-5 py-4 text-[11px]"
               >
                 <strong>{flight.id}</strong>
                 <span>
@@ -618,46 +649,49 @@ export default function FlightListPage() {
                 </span>
                 <span>{flight.departureTime.replace("T", " ")}</span>
                 <span>{flight.arrivalTime.replace("T", " ")}</span>
+                <span>{formatDuration(getFlightDuration(flight))}</span>
                 <span>{displayPrice(flight.price)}</span>
                 <span>
                   {flight.seatsAvailable}/{flight.capacity} seats
                 </span>
                 <span>{flight.status ?? "Scheduled"}</span>
-                <span className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingId(flight.databaseId || flight.id);
-                      setForm({
-                        flightNumber: flight.id,
-                        aircraftId: flight.aircraftId ?? "",
-                        fromAirportCode: flight.from,
-                        toAirportCode: flight.to,
-                        departureTime: flight.departureTime.slice(0, 16),
-                        arrivalTime: calculateArrivalTime(
-                          flight.departureTime.slice(0, 16),
-                          flight.from,
-                          flight.to,
-                        ),
-                        price: String(flight.price),
-                        seatCapacity: String(flight.capacity),
-                        seatsAvailable: String(flight.seatsAvailable),
-                        status: flight.status ?? "Scheduled",
-                      });
-                      setShowForm(true);
-                    }}
-                    className="font-semibold text-[#0e6b69]"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPendingDelete(flight)}
-                    className="font-semibold text-[#c56d61]"
-                  >
-                    Remove
-                  </button>
-                </span>
+                {canWrite("FLIGHTS") && (
+                  <span className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingId(flight.databaseId || flight.id);
+                        setForm({
+                          flightNumber: flight.id,
+                          aircraftId: flight.aircraftId ?? "",
+                          fromAirportCode: flight.from,
+                          toAirportCode: flight.to,
+                          departureTime: flight.departureTime.slice(0, 16),
+                          arrivalTime: calculateArrivalTime(
+                            flight.departureTime.slice(0, 16),
+                            flight.from,
+                            flight.to,
+                          ),
+                          price: String(flight.price),
+                          seatCapacity: String(flight.capacity),
+                          seatsAvailable: String(flight.seatsAvailable),
+                          status: flight.status ?? "Scheduled",
+                        });
+                        setShowForm(true);
+                      }}
+                      className="font-semibold text-[#0e6b69]"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingDelete(flight)}
+                      className="font-semibold text-[#c56d61]"
+                    >
+                      Remove
+                    </button>
+                  </span>
+                )}
               </div>
             ))}
           </div>

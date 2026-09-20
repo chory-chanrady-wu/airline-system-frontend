@@ -8,6 +8,7 @@ import {
   type FlightSearchValues,
 } from "../../components/flight-search";
 import { PageTitle } from "../../components/page-title";
+import { usePermissions } from "../../hooks/use-permissions";
 import {
   getSession,
   findItineraries,
@@ -44,6 +45,7 @@ const emptyNewPassenger = {
 };
 
 export default function BookFlightPage() {
+  const { canWrite } = usePermissions();
   const [availableFlights, setAvailableFlights] = useState<Flight[]>([]);
   const [session] = useState<User | null>(() => getSession());
   const [message, setMessage] = useState("");
@@ -164,6 +166,10 @@ export default function BookFlightPage() {
   }
 
   async function confirmBooking() {
+    if (!canWrite("BOOKINGS")) {
+      setMessage("You do not have permission to create bookings.");
+      return;
+    }
     const flight = availableFlights.find((item) => item.id === bookingFlightId);
     if (!bookingFlightId || !flight) return;
     setBooking(true);

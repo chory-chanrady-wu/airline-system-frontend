@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
+import { usePermissions } from "../../../hooks/use-permissions";
 import {
   createRoleWithApi,
   deleteRoleWithApi,
@@ -13,10 +14,15 @@ import {
 import type { ApiRole } from "../../../ustils/type";
 
 const PERMISSIONS_BY_MODULE = {
-  Users: ["USERS_READ", "USERS_WRITE"],
-  Airports: ["AIRPORTS_READ", "AIRPORTS_WRITE"],
-  Flights: ["FLIGHTS_READ", "FLIGHTS_WRITE"],
+  Dashboard: ["DASHBOARD_READ"],
   Bookings: ["BOOKINGS_READ", "BOOKINGS_WRITE"],
+  Passengers: ["PASSENGERS_READ", "PASSENGERS_WRITE"],
+  Flights: ["FLIGHTS_READ", "FLIGHTS_WRITE"],
+  Aircrafts: ["AIRCRAFTS_READ", "AIRCRAFTS_WRITE"],
+  Airports: ["AIRPORTS_READ", "AIRPORTS_WRITE"],
+  Routes: ["ROUTES_READ", "ROUTES_WRITE"],
+  Users: ["USERS_READ", "USERS_WRITE"],
+  Roles: ["ROLES_READ", "ROLES_WRITE"],
 } as const;
 type PermissionModule = keyof typeof PERMISSIONS_BY_MODULE;
 const MODULES = Object.keys(PERMISSIONS_BY_MODULE) as PermissionModule[];
@@ -57,6 +63,7 @@ function mapRole(role: ApiRole, users: number): RoleRow {
 }
 
 export default function RolesPage() {
+  const { canWrite } = usePermissions();
   const [showForm, setShowForm] = useState(false);
   const [roleRows, setRoleRows] = useState<RoleRow[]>([]);
   const [editingRole, setEditingRole] = useState<RoleRow | null>(null);
@@ -136,6 +143,10 @@ export default function RolesPage() {
 
   async function saveRole(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canWrite("ROLES")) {
+      setError("You do not have permission to manage roles.");
+      return;
+    }
     if (!form.name.trim() || !form.description.trim()) return;
     setSaving(true);
     setError("");
@@ -164,6 +175,10 @@ export default function RolesPage() {
 
   async function confirmDelete() {
     if (!pendingDelete) return;
+    if (!canWrite("ROLES")) {
+      setError("You do not have permission to delete roles.");
+      return;
+    }
     setSaving(true);
     try {
       await deleteRoleWithApi(pendingDelete.rawId);
@@ -200,8 +215,8 @@ export default function RolesPage() {
         <PageTitle
           eyebrow="Settings / Access control"
           title="Roles & permissions"
-          action="Create role"
-          onAction={openCreateForm}
+          action={canWrite("ROLES") ? "Create role" : undefined}
+          onAction={canWrite("ROLES") ? openCreateForm : undefined}
         />
         {error && (
           <div className="mb-5 flex items-center justify-between rounded-lg border border-[#f2cbc5] bg-[#fff6f4] px-4 py-3 text-[11px] text-[#b65d50]">
@@ -447,20 +462,22 @@ export default function RolesPage() {
                   {role.users}
                 </span>
                 <span className="text-[#71838a]">{role.createdAt}</span>
-                <span className="flex items-center gap-2 whitespace-nowrap">
-                  <button
-                    onClick={() => openEditForm(role)}
-                    className="rounded border border-[#6bb8ae] px-2 py-1 font-semibold text-[#0e6b69] hover:bg-[#e1f2ed]"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => setPendingDelete(role)}
-                    className="rounded border border-[#e2a39b] px-2 py-1 font-semibold text-[#c56d61] hover:bg-[#fbeae7]"
-                  >
-                    Delete
-                  </button>
-                </span>
+                {canWrite("ROLES") && (
+                  <span className="flex items-center gap-2 whitespace-nowrap">
+                    <button
+                      onClick={() => openEditForm(role)}
+                      className="rounded border border-[#6bb8ae] px-2 py-1 font-semibold text-[#0e6b69] hover:bg-[#e1f2ed]"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setPendingDelete(role)}
+                      className="rounded border border-[#e2a39b] px-2 py-1 font-semibold text-[#c56d61] hover:bg-[#fbeae7]"
+                    >
+                      Delete
+                    </button>
+                  </span>
+                )}
               </div>
             ))
           )}

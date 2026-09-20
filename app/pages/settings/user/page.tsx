@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
+import { usePermissions } from "../../../hooks/use-permissions";
 import {
   createUserWithApi,
   deleteUserWithApi,
@@ -23,6 +24,7 @@ type UserRow = {
 };
 
 export default function UserSettingsPage() {
+  const { canWrite } = usePermissions();
   const [showForm, setShowForm] = useState(false);
   const [userRows, setUserRows] = useState<UserRow[]>([]);
   const [pendingDelete, setPendingDelete] = useState<UserRow | null>(null);
@@ -83,6 +85,10 @@ export default function UserSettingsPage() {
 
   async function saveUser(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canWrite("USERS")) {
+      setError("You do not have permission to manage users.");
+      return;
+    }
     if (
       !form.name.trim() ||
       !form.email.trim() ||
@@ -148,6 +154,10 @@ export default function UserSettingsPage() {
 
   async function confirmDelete() {
     if (pendingDelete) {
+      if (!canWrite("USERS")) {
+        setError("You do not have permission to delete users.");
+        return;
+      }
       setSaving(true);
       try {
         await deleteUserWithApi(pendingDelete.id);
@@ -171,8 +181,10 @@ export default function UserSettingsPage() {
         <PageTitle
           eyebrow="Settings / User management"
           title="Users"
-          action="New user"
-          onAction={() => setShowForm(!showForm)}
+          action={canWrite("USERS") ? "New user" : undefined}
+          onAction={
+            canWrite("USERS") ? () => setShowForm(!showForm) : undefined
+          }
         />
         {pendingDelete && (
           <div className="fixed inset-0 z-40 grid place-items-center bg-[#172b3a]/20 px-5">
@@ -369,20 +381,22 @@ export default function UserSettingsPage() {
                   </span>
                 </span>
                 <span className="text-[#71838a]">{user.lastLogin}</span>
-                <span className="flex gap-2">
-                  <button
-                    onClick={() => editUser(user)}
-                    className="font-semibold text-[#0e6b69] hover:underline"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => setPendingDelete(user)}
-                    className="font-semibold text-[#c56d61] hover:underline"
-                  >
-                    Delete
-                  </button>
-                </span>
+                {canWrite("USERS") && (
+                  <span className="flex gap-2">
+                    <button
+                      onClick={() => editUser(user)}
+                      className="font-semibold text-[#0e6b69] hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setPendingDelete(user)}
+                      className="font-semibold text-[#c56d61] hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </span>
+                )}
               </div>
             ))}
         </div>

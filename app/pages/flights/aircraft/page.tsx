@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
+import { usePermissions } from "../../../hooks/use-permissions";
 import {
   createAircraftWithApi,
   fetchAircraftsFromApi,
@@ -28,6 +29,7 @@ const emptyForm: AircraftForm = {
 };
 
 export default function AircraftPage() {
+  const { canWrite } = usePermissions();
   const [aircrafts, setAircrafts] = useState<AircraftRow[]>([]);
   const [form, setForm] = useState<AircraftForm>(emptyForm);
   const [showForm, setShowForm] = useState(false);
@@ -66,6 +68,10 @@ export default function AircraftPage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canWrite("AIRCRAFTS")) {
+      setMessage("You do not have permission to manage aircraft.");
+      return;
+    }
     try {
       await createAircraftWithApi({
         registrationNumber: form.registrationNumber.trim().toUpperCase(),
@@ -90,11 +96,21 @@ export default function AircraftPage() {
         <PageTitle
           eyebrow="Flight Management / Aircraft"
           title="Aircraft management"
-          action={showForm ? "Close form" : "New aircraft"}
-          onAction={() => {
-            setShowForm((open) => !open);
-            setForm(emptyForm);
-          }}
+          action={
+            canWrite("AIRCRAFTS")
+              ? showForm
+                ? "Close form"
+                : "New aircraft"
+              : undefined
+          }
+          onAction={
+            canWrite("AIRCRAFTS")
+              ? () => {
+                  setShowForm((open) => !open);
+                  setForm(emptyForm);
+                }
+              : undefined
+          }
         />
         {showForm && (
           <form

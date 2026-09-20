@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { AirlineSystem } from "../../../components/airline-system";
 import { PageTitle } from "../../../components/page-title";
+import { usePermissions } from "../../../hooks/use-permissions";
 import {
   createAirportWithApi,
   deleteAirportWithApi,
@@ -42,6 +43,7 @@ type AirportRow = Omit<AirportForm, "latitude" | "longitude"> & {
 };
 
 export default function AirportPage() {
+  const { canWrite } = usePermissions();
   const [airports, setAirports] = useState<AirportRow[]>([]);
   const [form, setForm] = useState<AirportForm>({
     code: "",
@@ -91,6 +93,10 @@ export default function AirportPage() {
   }, []);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canWrite("AIRPORTS")) {
+      setMessage("You do not have permission to manage airports.");
+      return;
+    }
     try {
       const airport = {
         ...form,
@@ -166,6 +172,10 @@ export default function AirportPage() {
 
   async function confirmDelete() {
     if (!pendingDelete) return;
+    if (!canWrite("AIRPORTS")) {
+      setMessage("You do not have permission to delete airports.");
+      return;
+    }
     const airportCode = pendingDelete;
     try {
       await deleteAirportWithApi(airportCode);
@@ -187,8 +197,20 @@ export default function AirportPage() {
         <PageTitle
           eyebrow="Flight Management / Airport"
           title="Airport management"
-          action={showForm ? "Close form" : "New airport"}
-          onAction={showForm ? cancelEditing : openNewAirportForm}
+          action={
+            canWrite("AIRPORTS")
+              ? showForm
+                ? "Close form"
+                : "New airport"
+              : undefined
+          }
+          onAction={
+            canWrite("AIRPORTS")
+              ? showForm
+                ? cancelEditing
+                : openNewAirportForm
+              : undefined
+          }
         />
         {showForm && (
           <form
@@ -364,33 +386,35 @@ export default function AirportPage() {
                     ? new Date(airport.createdAt).toLocaleDateString()
                     : "—"}
               </span>
-              <span className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(airport.code);
-                    setShowForm(true);
-                    setForm({
-                      code: airport.code,
-                      city: airport.city,
-                      country: airport.country ?? "",
-                      latitude: String(airport.latitude ?? ""),
-                      longitude: String(airport.longitude ?? ""),
-                      timezone: airport.timezone ?? "",
-                    });
-                  }}
-                  className="font-semibold text-[#0e6b69]"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPendingDelete(airport.code)}
-                  className="font-semibold text-[#c56d61]"
-                >
-                  Remove
-                </button>
-              </span>
+              {canWrite("AIRPORTS") && (
+                <span className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditing(airport.code);
+                      setShowForm(true);
+                      setForm({
+                        code: airport.code,
+                        city: airport.city,
+                        country: airport.country ?? "",
+                        latitude: String(airport.latitude ?? ""),
+                        longitude: String(airport.longitude ?? ""),
+                        timezone: airport.timezone ?? "",
+                      });
+                    }}
+                    className="font-semibold text-[#0e6b69]"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingDelete(airport.code)}
+                    className="font-semibold text-[#c56d61]"
+                  >
+                    Remove
+                  </button>
+                </span>
+              )}
             </div>
           ))}
         </div>
